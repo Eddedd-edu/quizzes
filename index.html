@@ -1,20 +1,27 @@
 <!DOCTYPE html>
-<html>
-  <head>
-  <base target="_top">
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Evaluación - ZipGrade</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     .hidden { display: none !important; }
     .timer { font-size: 1.5rem; font-weight: bold; color: #dc3545; }
     .pregunta-img { max-width: 100%; height: 300px; object-fit: contain; border-radius: 8px; margin-bottom: 15px; background: #eee; }
     .badge-puntos { float: right; font-size: 0.8rem; }
+    #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.8); display:flex; justify-content:center; align-items:center; z-index:9999; }
   </style>
 </head>
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-dark mb-4">
+<div id="loading-overlay" class="hidden">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+<nav class="navbar navbar-dark bg-dark mb-4 shadow">
   <div class="container">
-    <span class="navbar-brand">Plataforma Educativa</span>
+    <span class="navbar-brand">🏫 I.E.T. San José - Quizzes</span>
     <div>
       <button class="btn btn-outline-info btn-sm me-2" onclick="irAlInicio()">🏠 Inicio</button>
       <button class="btn btn-outline-light btn-sm" onclick="showSection('admin')">⚙️ Admin</button>
@@ -23,286 +30,183 @@
 </nav>
 
 <div class="container">
-  
   <section id="sec-login" class="card p-4 shadow-sm mx-auto" style="max-width: 500px;">
     <h3 class="text-center mb-4">Presentar Quiz</h3>
-    <div class="mb-3">
-      <label class="form-label fw-bold">ID ZipGrade:</label>
-      <input type="text" id="zipIdInput" class="form-control form-control-lg" placeholder="Tu código">
-    </div>
-    <div class="mb-4">
-      <label class="form-label fw-bold">Seleccionar Quiz:</label>
-      <select id="quizSelect" class="form-select form-select-lg"></select>
-    </div>
+    <div class="mb-3"><label class="fw-bold">ID ZipGrade:</label><input type="text" id="zipIdInput" class="form-control form-control-lg"></div>
+    <div class="mb-4"><label class="fw-bold">Seleccionar Quiz:</label><select id="quizSelect" class="form-select form-select-lg"></select></div>
     <button class="btn btn-primary btn-lg w-100" onclick="iniciarQuiz()">Comenzar Prueba</button>
   </section>
 
   <section id="sec-quiz" class="hidden">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h4 id="quiz-titulo" class="text-primary fw-bold"></h4>
-      <div class="timer" id="reloj">00:00</div>
-    </div>
-    <div class="card p-4 shadow-sm border-primary">
-      <div id="pregunta-container"></div>
-      <div class="mt-4 d-flex justify-content-between align-items-center">
-        <span id="progreso-texto" class="text-muted fw-bold"></span>
-        <button class="btn btn-success btn-lg" id="btn-siguiente" onclick="siguientePregunta()">Siguiente ➡️</button>
-      </div>
-    </div>
+    <div class="d-flex justify-content-between align-items-center mb-3"><h4 id="quiz-titulo" class="text-primary fw-bold"></h4><div class="timer" id="reloj">00:00</div></div>
+    <div class="card p-4 shadow-sm border-primary"><div id="pregunta-container"></div><div class="mt-4 d-flex justify-content-between align-items-center"><span id="progreso-texto" class="text-muted fw-bold"></span><button class="btn btn-success btn-lg" onclick="siguientePregunta()">Siguiente ➡️</button></div></div>
   </section>
 
   <section id="sec-admin" class="hidden">
-    <h3 class="mb-3">Panel de Administración</h3>
+    <h3>Panel de Administración</h3>
     <ul class="nav nav-tabs mb-3">
-      <li class="nav-item"><a class="nav-link active" id="tab-n" href="#" onclick="tabAdmin('nuevo')">Nuevo Quiz</a></li>
-      <li class="nav-item"><a class="nav-link" id="tab-not" href="#" onclick="tabAdmin('notas')">Ver Notas</a></li>
+      <li class="nav-item"><a class="nav-link active" href="#" onclick="tabAdmin('nuevo')">Nuevo Quiz</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="tabAdmin('notas')">Ver Notas</a></li>
     </ul>
-    
     <div id="admin-content-nuevo">
        <div class="card p-4 shadow-sm">
-         <h5 class="text-primary border-bottom pb-2">Configuración General</h5>
          <div class="row g-3 mb-4">
-            <div class="col-md-6">
-               <label class="small fw-bold">Nombre del Quiz</label>
-               <input type="text" id="adm-nombre" class="form-control" placeholder="Ej: Química 10 - Taller">
-            </div>
-            <div class="col-md-6">
-               <label class="small fw-bold">Tiempo por pregunta (segundos)</label>
-               <input type="number" id="adm-tiempo-global" class="form-control" placeholder="Ej: 60">
-            </div>
+            <div class="col-md-6"><label class="small fw-bold">Nombre del Quiz</label><input type="text" id="adm-nombre" class="form-control"></div>
+            <div class="col-md-6"><label class="small fw-bold">Tiempo por pregunta (seg)</label><input type="number" id="adm-tiempo-global" class="form-control"></div>
          </div>
-         
-         <h5 class="text-primary border-bottom pb-2">Agregar Pregunta</h5>
-         <div class="bg-light p-3 border rounded mb-4">
+         <div class="bg-light p-3 border rounded mb-3">
             <textarea id="adm-p-txt" class="form-control mb-2" rows="2" placeholder="Enunciado"></textarea>
-            <input type="text" id="adm-p-img" class="form-control mb-3" placeholder="URL de Imagen (opcional)">
-            <div class="row g-2 mb-3">
-              <div class="col-6"><input id="adm-p-a" class="form-control" placeholder="Opción A"></div>
-              <div class="col-6"><input id="adm-p-b" class="form-control" placeholder="Opción B"></div>
-              <div class="col-6"><input id="adm-p-c" class="form-control" placeholder="Opción C"></div>
-              <div class="col-6"><input id="adm-p-d" class="form-control" placeholder="Opción D"></div>
-            </div>
-            <div class="row g-2 align-items-center mb-3">
-              <div class="col-md-6">
-                <select id="adm-p-corr" class="form-select border-success">
-                  <option value="">-- Respuesta Correcta --</option>
-                  <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <input type="number" id="adm-p-puntos" class="form-control" placeholder="Puntos">
-              </div>
-            </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="check-puntos-global">
-              <label class="form-check-label small text-muted">Mismo puntaje para todas</label>
-            </div>
-            <button class="btn btn-secondary w-100" onclick="addPreguntaALista()">➕ Añadir a la Lista</button>
+            <input type="text" id="adm-p-img" class="form-control mb-2" placeholder="URL Imagen">
+            <div class="row g-2 mb-2"><div class="col-3"><input id="adm-p-a" class="form-control" placeholder="A"></div><div class="col-3"><input id="adm-p-b" class="form-control" placeholder="B"></div><div class="col-3"><input id="adm-p-c" class="form-control" placeholder="C"></div><div class="col-3"><input id="adm-p-d" class="form-control" placeholder="D"></div></div>
+            <div class="row g-2"><div class="col-6"><select id="adm-p-corr" class="form-select"><option value="A">Correcta: A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div><div class="col-6"><input type="number" id="adm-p-puntos" class="form-control" placeholder="Puntos"></div></div>
+            <button class="btn btn-secondary w-100 mt-2" onclick="addPreguntaALista()">➕ Añadir Pregunta</button>
          </div>
-         <div class="mb-4">
-            <h6 class="fw-bold">Preguntas: <span id="contador-pre" class="badge bg-primary fs-6">0</span></h6>
-            <div id="lista-pre-temp" class="small p-2 border bg-white rounded" style="max-height:150px; overflow-y:auto; min-height: 50px;">
-               <span class="text-muted">No hay preguntas añadidas...</span>
-            </div>
-         </div>
-         <button id="btn-publicar" class="btn btn-primary w-100 btn-lg shadow" onclick="publicarQuiz()">🚀 PUBLICAR EN GOOGLE SHEETS</button>
+         <div class="mb-3">Preguntas listas: <span id="contador-pre" class="badge bg-primary">0</span></div>
+         <button id="btn-publicar" class="btn btn-primary w-100 btn-lg" onclick="publicarQuiz()">🚀 PUBLICAR EN SHEETS</button>
        </div>
     </div>
-
-    <div id="admin-content-notas" class="hidden">
-        <div class="table-responsive bg-white p-3 border rounded shadow-sm" id="tabla-notas">Cargando...</div>
-    </div>
+    <div id="admin-content-notas" class="hidden"><div class="table-responsive bg-white p-3 border rounded shadow-sm" id="tabla-notas"></div></div>
   </section>
-
 </div>
 
 <script>
-  let preguntas = [];
-  let indexActual = 0;
-  let respuestasUser = [];
-  let infoEstudiante = null;
-  let timerInterval;
-  let quizPreguntasLista = []; 
+  // 1. REEMPLAZA ESTA URL CON TU NUEVA URL DE IMPLEMENTACIÓN DE GOOGLE
+  const WEB_APP_URL = 'https://script.google.com/macros/u/1/s/AKfycbx-jBecJnNcG-s0MeYrCvh2W6iKAEMyMC9pr0i6sARiKrItAEJMOBJz-TJjUiw05Hq9bQ/exec';
 
-  window.onload = () => cargarListaQuizzes();
+  let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null, timerInterval, quizPreguntasLista = [];
 
-  function cargarListaQuizzes() {
-    google.script.run.withSuccessHandler(data => {
-      const select = document.getElementById('quizSelect');
-      select.innerHTML = '';
-      data.forEach(q => {
-        let opt = document.createElement('option');
-        opt.value = q.nombre;
-        opt.text = q.nombre;
-        opt.dataset.tiempo = q.tiempo;
-        select.add(opt);
+  async function callAPI(data) {
+    document.getElementById('loading-overlay').classList.remove('hidden');
+    try {
+      const response = await fetch(WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Importante para evitar bloqueos de CORS en GAS
+        body: JSON.stringify(data)
       });
-    }).getQuizzes();
-  }
-
-  function irAlInicio() {
-    clearInterval(timerInterval);
-    document.getElementById('zipIdInput').value = '';
-    preguntas = [];
-    indexActual = 0;
-    respuestasUser = [];
-    infoEstudiante = null;
-    cargarListaQuizzes();
-    showSection('login');
-  }
-
-  function showSection(id) {
-    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-    document.getElementById('sec-' + id).classList.remove('hidden');
-  }
-
-  function tabAdmin(tab) {
-    if(tab === 'nuevo') {
-      document.getElementById('admin-content-nuevo').classList.remove('hidden');
-      document.getElementById('admin-content-notas').classList.add('hidden');
-      document.getElementById('tab-n').classList.add('active');
-      document.getElementById('tab-not').classList.remove('active');
-    } else {
-      document.getElementById('admin-content-nuevo').classList.add('hidden');
-      document.getElementById('admin-content-notas').classList.remove('hidden');
-      document.getElementById('tab-n').classList.remove('active');
-      document.getElementById('tab-not').classList.add('active');
-      cargarNotas();
+      // Como usamos no-cors, no podemos leer la respuesta directamente de forma estándar.
+      // Para obtener datos (GET), Google Apps Script es truculento. 
+      // Por eso, esta versión de GitHub funciona mejor con una API que devuelva JSONP o usando un truco de redirección.
+      // SIN EMBARGO, para simplificar al 100%, usaremos una petición estándar con redirección:
+      
+      const realResponse = await fetch(WEB_APP_URL, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      return await realResponse.json();
+    } catch (e) {
+      console.error(e);
+      return { success: false, error: "Error de conexión" };
+    } finally {
+      document.getElementById('loading-overlay').classList.add('hidden');
     }
   }
 
-  function iniciarQuiz() {
+  window.onload = async () => {
+    const res = await callAPI({ action: 'getQuizzes' });
+    if(res.success) {
+      const select = document.getElementById('quizSelect');
+      res.data.forEach(q => {
+        let opt = document.createElement('option');
+        opt.value = q.nombre; opt.text = q.nombre; opt.dataset.tiempo = q.tiempo;
+        select.add(opt);
+      });
+    }
+  };
+
+  async function iniciarQuiz() {
     const zip = document.getElementById('zipIdInput').value.trim();
     const quizName = document.getElementById('quizSelect').value;
-    if(!zip || !quizName) return alert("Completa tus datos");
-
-    google.script.run.withSuccessHandler(user => {
-      if(!user) return alert("ID ZipGrade no válido");
-      infoEstudiante = user;
-      google.script.run.withSuccessHandler(data => {
-        if(data.length === 0) return alert("El quiz está vacío");
-        preguntas = data;
-        indexActual = 0;
-        respuestasUser = [];
-        document.getElementById('quiz-titulo').innerText = quizName;
-        showSection('quiz');
-        mostrarPregunta();
-      }).cargarPreguntas(quizName);
-    }).validarEstudiante(zip);
+    const userRes = await callAPI({ action: 'validarEstudiante', zipID: zip });
+    if(!userRes.success) return alert("ID no válido");
+    infoEstudiante = userRes.data;
+    const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName });
+    preguntas = qRes.data;
+    indexActual = 0; respuestasUser = [];
+    document.getElementById('quiz-titulo').innerText = quizName;
+    showSection('quiz');
+    mostrarPregunta();
   }
 
   function mostrarPregunta() {
     if(indexActual >= preguntas.length) return finalizarQuiz();
     const p = preguntas[indexActual];
-    let html = `<h5 class="mb-4"><span class="badge bg-dark badge-puntos">${p.puntos} pts</span> ${p.enunciado}</h5>`;
-    if(p.imagen) html += `<div class="text-center"><img src="${p.imagen}" class="pregunta-img" onerror="this.style.display='none'"></div>`;
-    html += `<div class="list-group mt-3">`;
-    ['A','B','C','D'].forEach((letra, idx) => {
-      html += `<label class="list-group-item list-group-item-action" style="cursor:pointer;">
-        <input class="form-check-input me-3" type="radio" name="resp" value="${letra}"> <strong>${letra}.</strong> ${p.opciones[idx]}
-      </label>`;
+    let html = `<h5 class="mb-4">${p.enunciado} <small class="text-muted">(${p.puntos} pts)</small></h5>`;
+    if(p.imagen) html += `<div class="text-center"><img src="${p.imagen}" class="pregunta-img"></div>`;
+    html += `<div class="list-group">`;
+    ['A','B','C','D'].forEach((l, i) => {
+      html += `<label class="list-group-item"><input class="form-check-input me-2" type="radio" name="resp" value="${l}"> <b>${l}.</b> ${p.opciones[i]}</label>`;
     });
-    html += `</div>`;
-    document.getElementById('pregunta-container').innerHTML = html;
-    document.getElementById('progreso-texto').innerText = `Pregunta ${indexActual + 1} de ${preguntas.length}`;
+    document.getElementById('pregunta-container').innerHTML = html + `</div>`;
     iniciarCronometro();
   }
 
   function iniciarCronometro() {
     clearInterval(timerInterval);
     let tiempo = parseInt(document.getElementById('quizSelect').selectedOptions[0].dataset.tiempo);
-    const display = document.getElementById('reloj');
     timerInterval = setInterval(() => {
-      let mins = Math.floor(tiempo / 60);
-      let secs = tiempo % 60;
-      display.innerText = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
-      if (--tiempo < 0) {
-        clearInterval(timerInterval);
-        siguientePregunta();
-      }
+      let m = Math.floor(tiempo / 60), s = tiempo % 60;
+      document.getElementById('reloj').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+      if (--tiempo < 0) { clearInterval(timerInterval); siguientePregunta(); }
     }, 1000);
   }
 
   function siguientePregunta() {
-    const seleccionada = document.querySelector('input[name="resp"]:checked');
-    respuestasUser.push(seleccionada ? seleccionada.value : "N/A");
-    indexActual++;
-    mostrarPregunta();
+    const sel = document.querySelector('input[name="resp"]:checked');
+    respuestasUser.push(sel ? sel.value : "N/A");
+    indexActual++; mostrarPregunta();
   }
 
-  function finalizarQuiz() {
-    if(!confirm("¿Enviar respuestas?")) return;
+  async function finalizarQuiz() {
+    if(!confirm("¿Enviar?")) return;
     clearInterval(timerInterval);
-    let puntaje = 0;
-    respuestasUser.forEach((r, i) => {
-      if(r === preguntas[i].correcta) puntaje += preguntas[i].puntos;
-    });
-    const res = {
-      nombre: infoEstudiante.nombre, grado: infoEstudiante.grado, id: infoEstudiante.id,
-      quiz: document.getElementById('quiz-titulo').innerText, puntaje: puntaje
-    };
-    google.script.run.withSuccessHandler(() => {
-      alert(`Enviado. Puntaje: ${puntaje}`);
-      irAlInicio();
-    }).guardarResultado(res);
+    let pts = 0;
+    respuestasUser.forEach((r, i) => { if(r === preguntas[i].correcta) pts += preguntas[i].puntos; });
+    await callAPI({ action: 'guardarResultado', res: { ...infoEstudiante, quiz: document.getElementById('quiz-titulo').innerText, puntaje: pts } });
+    alert("Enviado. Puntos: " + pts);
+    location.reload();
   }
 
   function addPreguntaALista() {
-    const p = {
-      texto: document.getElementById('adm-p-txt').value,
-      img: document.getElementById('adm-p-img').value,
-      a: document.getElementById('adm-p-a').value,
-      b: document.getElementById('adm-p-b').value,
-      c: document.getElementById('adm-p-c').value,
-      d: document.getElementById('adm-p-d').value,
-      correcta: document.getElementById('adm-p-corr').value,
-      puntos: parseFloat(document.getElementById('adm-p-puntos').value) || 0
-    };
-    if(!p.texto || !p.correcta) return alert("Faltan datos");
-    quizPreguntasLista.push(p);
+    quizPreguntasLista.push({
+      texto: document.getElementById('adm-p-txt').value, img: document.getElementById('adm-p-img').value,
+      a: document.getElementById('adm-p-a').value, b: document.getElementById('adm-p-b').value,
+      c: document.getElementById('adm-p-c').value, d: document.getElementById('adm-p-d').value,
+      correcta: document.getElementById('adm-p-corr').value, puntos: parseFloat(document.getElementById('adm-p-puntos').value) || 1
+    });
     document.getElementById('contador-pre').innerText = quizPreguntasLista.length;
-    document.getElementById('lista-pre-temp').innerHTML += `<div class="border-bottom py-1"><strong>${quizPreguntasLista.length}.</strong> ${p.texto.substring(0,40)}...</div>`;
-    ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-corr'].forEach(id => document.getElementById(id).value = "");
+    ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d'].forEach(id => document.getElementById(id).value = "");
   }
 
-  function publicarQuiz() {
-    const nombre = document.getElementById('adm-nombre').value.trim();
-    const tiempo = document.getElementById('adm-tiempo-global').value;
-    if(!nombre || !tiempo || quizPreguntasLista.length === 0) return alert("Faltan datos del quiz");
-
-    if(document.getElementById('check-puntos-global').checked) {
-      const pGlobal = parseFloat(document.getElementById('adm-p-puntos').value);
-      quizPreguntasLista.forEach(p => p.puntos = pGlobal);
-    }
-
+  async function publicarQuiz() {
     const btn = document.getElementById('btn-publicar');
-    btn.innerHTML = "⌛ Procesando...";
-    btn.disabled = true;
-
-    google.script.run
-      .withSuccessHandler(() => {
-        alert("Publicado con éxito");
-        quizPreguntasLista = [];
-        irAlInicio();
-      })
-      .withFailureHandler(e => alert("Error: " + e.message))
-      .guardarNuevoQuiz({ nombre: nombre, tiempo: tiempo, preguntas: quizPreguntasLista });
+    btn.disabled = true; btn.innerText = "Publicando...";
+    const res = await callAPI({ 
+      action: 'guardarNuevoQuiz', 
+      datos: { nombre: document.getElementById('adm-nombre').value, tiempo: document.getElementById('adm-tiempo-global').value, preguntas: quizPreguntasLista } 
+    });
+    alert(res.success ? "Publicado" : "Error: " + res.error);
+    location.reload();
   }
 
-  function cargarNotas() {
-    google.script.run.withSuccessHandler(data => {
-      if(data.length <= 1) return document.getElementById('tabla-notas').innerHTML = "No hay registros";
-      let html = '<table class="table table-striped table-sm"><thead><tr class="table-dark">';
-      data[0].forEach(h => html += `<th>${h}</th>`);
-      html += '</tr></thead><tbody>';
-      for(let i=1; i<data.length; i++){
-        html += '<tr>';
-        data[i].forEach((cell, idx) => html += `<td>${idx === 5 ? new Date(cell).toLocaleString() : cell}</td>`);
-        html += '</tr>';
-      }
-      document.getElementById('tabla-notas').innerHTML = html + '</tbody></table>';
-    }).obtenerNotas();
+  async function cargarNotas() {
+    const res = await callAPI({ action: 'obtenerNotas' });
+    let html = '<table class="table table-striped table-sm"><thead><tr>';
+    res.data[0].forEach(h => html += `<th>${h}</th>`);
+    html += '</tr></thead><tbody>';
+    for(let i=1; i<res.data.length; i++){
+      html += '<tr>';
+      res.data[i].forEach((c, idx) => html += `<td>${idx === 5 ? new Date(c).toLocaleString() : c}</td>`);
+      html += '</tr>';
+    }
+    document.getElementById('tabla-notas').innerHTML = html + '</tbody></table>';
+  }
+
+  function showSection(id) { document.querySelectorAll('section').forEach(s => s.classList.add('hidden')); document.getElementById('sec-' + id).classList.remove('hidden'); }
+  function irAlInicio() { location.reload(); }
+  function tabAdmin(t) { 
+    if(t==='nuevo'){ document.getElementById('admin-content-nuevo').classList.remove('hidden'); document.getElementById('admin-content-notas').classList.add('hidden'); }
+    else { document.getElementById('admin-content-nuevo').classList.add('hidden'); document.getElementById('admin-content-notas').classList.remove('hidden'); cargarNotas(); }
   }
 </script>
-  </body>
+</body>
 </html>
