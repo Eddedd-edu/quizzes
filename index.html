@@ -139,20 +139,33 @@
 
   let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null, timerInterval, quizPreguntasLista = [];
 
+  // Función blindada contra bloqueos de CORS
   async function callAPI(params, method = 'POST') {
     document.getElementById('loading-overlay').classList.remove('hidden');
     try {
       let url = WEB_APP_URL;
-      let options = { method: method };
+      
+      // Configuramos para que siga redirecciones y lo trate como texto simple
+      let options = { 
+        method: method,
+        redirect: 'follow' 
+      };
+
       if (method === 'GET') {
         url += '?' + new URLSearchParams(params).toString();
       } else {
         options.body = JSON.stringify(params);
+        // ESTA LÍNEA ES LA MAGIA: Evita que el navegador lance un bloqueo de seguridad (preflight OPTIONS)
+        options.headers = {
+          'Content-Type': 'text/plain;charset=utf-8'
+        };
       }
-      const response = await fetch(url);
+
+      const response = await fetch(url, options);
       return await response.json();
     } catch (e) {
-      return { success: false, error: "Error de conexión con Google." };
+      console.error("Error en comunicación:", e);
+      return { success: false, error: "Error de conexión con Google. Verifica los permisos de tu Apps Script." };
     } finally {
       document.getElementById('loading-overlay').classList.add('hidden');
     }
