@@ -239,7 +239,7 @@
           <h6>Preguntas en el Quiz: <span id="contador-pre" class="badge bg-primary">0</span></h6>
           <div class="table-responsive border rounded bg-white" style="max-height:250px;">
             <table class="table table-sm table-hover mb-0">
-              <thead class="table-light"><tr><th>#</th><th>Enunciado</th><th>Corr</th><th>Pts</th><th>Acción</th></tr></thead>
+              <thead class="table-light"><tr><th>#</th><th>Enunciado</th><th>Corr</th><th>Pts</th><th colspan="2">Acción</th></tr></thead>
               <tbody id="lista-pre-temp-body">
                 <tr><td colspan="5" class="text-center text-muted">Aún no hay preguntas en este quiz</td></tr>
               </tbody>
@@ -273,7 +273,7 @@
   const LS_KEY = 'iet_quiz_sesion';
 
   let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null,
-      timerInterval, quizPreguntasLista = [], notasVisiblesData = [];
+      timerInterval, quizPreguntasLista = [], notasVisiblesData = [], editandoIndex = -1;
 
   // ─── LOADING ───────────────────────────────────────────────
   function setLoading(show, msg = 'Cargando...') {
@@ -674,30 +674,66 @@
     const texto = document.getElementById('adm-p-txt').value;
     const correcta = document.getElementById('adm-p-corr').value;
     if (!texto || !correcta) return alert("Debe ingresar al menos el enunciado y la respuesta correcta.");
-    quizPreguntasLista.push({
+    const datos = {
       texto, img: document.getElementById('adm-p-img').value,
       a: document.getElementById('adm-p-a').value, b: document.getElementById('adm-p-b').value,
       c: document.getElementById('adm-p-c').value, d: document.getElementById('adm-p-d').value,
       correcta, puntos: parseFloat(document.getElementById('adm-p-puntos').value) || 1
-    });
+    };
+    if (editandoIndex >= 0) {
+      quizPreguntasLista[editandoIndex] = datos;
+      editandoIndex = -1;
+      document.querySelector('#admin-content-nuevo .bg-light h6').innerText = 'Añadir Pregunta';
+      document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Añadir a la lista temporal';
+    } else {
+      quizPreguntasLista.push(datos);
+    }
     actualizarTablaAdmin();
     ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('adm-p-corr').value = '';
     document.getElementById('preview-enunciado').innerHTML = '<span class="text-muted" style="font-size:0.8rem">Vista previa...</span>';
   }
 
-  function quitarPregunta(index) { quizPreguntasLista.splice(index, 1); actualizarTablaAdmin(); }
+  function editarPregunta(index) {
+    const p = quizPreguntasLista[index];
+    editandoIndex = index;
+    document.getElementById('adm-p-txt').value = p.texto;
+    document.getElementById('adm-p-img').value = p.img || '';
+    document.getElementById('adm-p-a').value = p.a || '';
+    document.getElementById('adm-p-b').value = p.b || '';
+    document.getElementById('adm-p-c').value = p.c || '';
+    document.getElementById('adm-p-d').value = p.d || '';
+    document.getElementById('adm-p-corr').value = p.correcta;
+    document.getElementById('adm-p-puntos').value = p.puntos;
+    document.querySelector('#admin-content-nuevo .bg-light h6').innerText = `✏️ Editando pregunta #${index + 1}`;
+    document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Guardar cambios';
+    actualizarPreviewLatex();
+    document.getElementById('adm-p-txt').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function quitarPregunta(index) {
+    if (editandoIndex === index) {
+      editandoIndex = -1;
+      document.querySelector('#admin-content-nuevo .bg-light h6').innerText = 'Añadir Pregunta';
+      document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Añadir a la lista temporal';
+      ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('adm-p-corr').value = '';
+    }
+    quizPreguntasLista.splice(index, 1);
+    actualizarTablaAdmin();
+  }
 
   function actualizarTablaAdmin() {
     document.getElementById('contador-pre').innerText = quizPreguntasLista.length;
     const body = document.getElementById('lista-pre-temp-body');
     if (quizPreguntasLista.length === 0) {
-      body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Aún no hay preguntas</td></tr>'; return;
+      body.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aún no hay preguntas</td></tr>'; return;
     }
-    body.innerHTML = quizPreguntasLista.map((p, i) => `<tr>
+    body.innerHTML = quizPreguntasLista.map((p, i) => `<tr ${editandoIndex === i ? 'class="table-warning"' : ''}>
       <td>${i+1}</td>
-      <td class="text-truncate" style="max-width:200px;">${p.texto}</td>
+      <td class="text-truncate" style="max-width:180px;">${p.texto}</td>
       <td>${p.correcta}</td><td>${p.puntos}</td>
+      <td><button onclick="editarPregunta(${i})" class="btn btn-sm btn-warning py-0 px-2">✏️</button></td>
       <td><button onclick="quitarPregunta(${i})" class="btn btn-sm btn-danger py-0 px-2">✕</button></td>
     </tr>`).join('');
   }
