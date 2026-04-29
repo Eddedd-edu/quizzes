@@ -1,803 +1,797 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>I.E.T. San José - Sistema de Quizzes</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- MathJax para fórmulas químicas y matemáticas -->
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']], packages: {'[+]': ['mhchem']} },
-      loader: { load: ['[tex]/mhchem'] },
-      options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
-      startup: { typeset: false }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
-  <style>
-    :root {
-      --primary: #0d6efd;
-      --success: #198754;
-      --danger: #dc3545;
-      --warning: #ffc107;
-    }
-    .hidden { display: none !important; }
-    .timer { font-size: 1.5rem; font-weight: bold; color: var(--danger); transition: color 0.3s; }
-    .timer.urgente { color: var(--danger); animation: pulso 0.8s infinite; }
-    @keyframes pulso { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    .pregunta-img { max-width: 100%; height: 200px; object-fit: contain; border-radius: 8px; background: #f8f9fa; display: block; margin: 10px auto; }
-    #loading-overlay { position: fixed; top:0;left:0;width:100%;height:100%; background:rgba(255,255,255,0.85); display:flex; flex-direction:column; gap:12px; justify-content:center; align-items:center; z-index:9999; }
-    .table-sm { font-size: 0.85rem; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I.E.T. San José - Sistema de Quizzes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']], packages: {'[+]': ['mhchem']} },
+      loader: { load: ['[tex]/mhchem'] },
+      options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+      startup: { typeset: false }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    :root {
+      --primary: #0d6efd;
+      --success: #198754;
+      --danger: #dc3545;
+      --warning: #ffc107;
+    }
+    .hidden { display: none !important; }
+    .timer { font-size: 1.5rem; font-weight: bold; color: var(--danger); transition: color 0.3s; }
+    .timer.urgente { color: var(--danger); animation: pulso 0.8s infinite; }
+    @keyframes pulso { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .pregunta-img { max-width: 100%; height: 200px; object-fit: contain; border-radius: 8px; background: #f8f9fa; display: block; margin: 10px auto; }
+    #loading-overlay { position: fixed; top:0;left:0;width:100%;height:100%; background:rgba(255,255,255,0.85); display:flex; flex-direction:column; gap:12px; justify-content:center; align-items:center; z-index:9999; }
+    .table-sm { font-size: 0.85rem; }
 
-    /* Paginación de preguntas */
-    .navegacion-preguntas { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:16px; flex-wrap:wrap; }
-    .barra-progreso-quiz { height:6px; border-radius:3px; background:#e9ecef; margin-bottom:16px; overflow:hidden; }
-    .barra-progreso-quiz-fill { height:100%; background:var(--primary); border-radius:3px; transition:width 0.4s ease; }
+    /* Paginación de preguntas */
+    .navegacion-preguntas { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:16px; flex-wrap:wrap; }
+    .barra-progreso-quiz { height:6px; border-radius:3px; background:#e9ecef; margin-bottom:16px; overflow:hidden; }
+    .barra-progreso-quiz-fill { height:100%; background:var(--primary); border-radius:3px; transition:width 0.4s ease; }
 
-    /* Indicador de burbujas de preguntas */
-    .burbujas-nav { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:12px 0; }
-    .burbuja { width:32px; height:32px; border-radius:50%; border:2px solid #dee2e6; background:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s; color:#6c757d; }
-    .burbuja.respondida { background:var(--primary); border-color:var(--primary); color:#fff; }
-    .burbuja.actual { border-color:var(--primary); color:var(--primary); transform:scale(1.15); }
+    /* Indicador de burbujas de preguntas */
+    .burbujas-nav { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:12px 0; }
+    .burbuja { width:32px; height:32px; border-radius:50%; border:2px solid #dee2e6; background:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s; color:#6c757d; }
+    .burbuja.respondida { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .burbuja.actual { border-color:var(--primary); color:var(--primary); transform:scale(1.15); }
 
-    /* Retroalimentación */
-    .feedback-item { border-radius:8px; padding:16px; margin-bottom:12px; border-left:4px solid; }
-    .feedback-correcto { background:#d1e7dd; border-color:var(--success); }
-    .feedback-incorrecto { background:#f8d7da; border-color:var(--danger); }
-    .feedback-sin-responder { background:#fff3cd; border-color:var(--warning); }
+    /* Retroalimentación */
+    .feedback-item { border-radius:8px; padding:16px; margin-bottom:12px; border-left:4px solid; }
+    .feedback-correcto { background:#d1e7dd; border-color:var(--success); }
+    .feedback-incorrecto { background:#f8d7da; border-color:var(--danger); }
+    .feedback-sin-responder { background:#fff3cd; border-color:var(--warning); }
 
-    /* Resaltado opción correcta/incorrecta en retroalimentación */
-    .opcion-correcta { background:#d1e7dd !important; border-color:var(--success) !important; font-weight:600; }
-    .opcion-incorrecta-sel { background:#f8d7da !important; border-color:var(--danger) !important; }
+    /* Resaltado opción correcta/incorrecta en retroalimentación */
+    .opcion-correcta { background:#d1e7dd !important; border-color:var(--success) !important; font-weight:600; }
+    .opcion-incorrecta-sel { background:#f8d7da !important; border-color:var(--danger) !important; }
 
-    /* Badge de autoguardado */
-    #badge-autoguardado { position:fixed; bottom:16px; right:16px; z-index:1000; font-size:0.75rem; padding:4px 10px; border-radius:20px; opacity:0; transition:opacity 0.5s; }
-    #badge-autoguardado.visible { opacity:1; }
+    /* Badge de autoguardado */
+    #badge-autoguardado { position:fixed; bottom:16px; right:16px; z-index:1000; font-size:0.75rem; padding:4px 10px; border-radius:20px; opacity:0; transition:opacity 0.5s; }
+    #badge-autoguardado.visible { opacity:1; }
 
-    /* Indicador de intento guardado en localStorage */
-    .alerta-recuperacion { border-left:4px solid var(--warning); background:#fff8e1; border-radius:6px; padding:12px 16px; margin-bottom:16px; font-size:0.9rem; }
+    /* Indicador de intento guardado en localStorage */
+    .alerta-recuperacion { border-left:4px solid var(--warning); background:#fff8e1; border-radius:6px; padding:12px 16px; margin-bottom:16px; font-size:0.9rem; }
 
-    /* Admin: preview LaTeX en vivo */
-    #preview-enunciado { min-height:40px; background:#f8f9fa; border-radius:6px; padding:8px 12px; font-size:0.95rem; border:1px dashed #ced4da; margin-top:6px; }
-    .latex-hint { font-size:0.75rem; color:#6c757d; margin-top:4px; }
+    /* Admin: preview LaTeX en vivo */
+    #preview-enunciado { min-height:40px; background:#f8f9fa; border-radius:6px; padding:8px 12px; font-size:0.95rem; border:1px dashed #ced4da; margin-top:6px; }
+    .latex-hint { font-size:0.75rem; color:#6c757d; margin-top:4px; }
 
-    /* Pantalla de resultados */
-    .resultado-score { font-size:3rem; font-weight:700; color:var(--primary); }
-    .resultado-pct { font-size:1.2rem; color:#6c757d; }
+    /* Pantalla de resultados */
+    .resultado-score { font-size:3rem; font-weight:700; color:var(--primary); }
+    .resultado-pct { font-size:1.2rem; color:#6c757d; }
 
-    @media(max-width:576px){
-      .navegacion-preguntas { flex-direction:column; }
-      .navegacion-preguntas .btn { width:100%; }
-    }
-  </style>
+    @media(max-width:576px){
+      .navegacion-preguntas { flex-direction:column; }
+      .navegacion-preguntas .btn { width:100%; }
+    }
+  </style>
 </head>
 <body class="bg-light">
 
 <div id="loading-overlay" class="hidden">
-  <div class="spinner-border text-primary" role="status"></div>
-  <span id="loading-msg" class="text-secondary fw-semibold">Cargando...</span>
+  <div class="spinner-border text-primary" role="status"></div>
+  <span id="loading-msg" class="text-secondary fw-semibold">Cargando...</span>
 </div>
 
 <span id="badge-autoguardado" class="badge bg-success">✓ Respuesta guardada</span>
 
 <nav class="navbar navbar-dark bg-dark mb-4 shadow">
-  <div class="container">
-    <span class="navbar-brand fw-bold">🧪 Química · I.E.T. San José</span>
-    <div class="d-flex gap-2">
-      <button class="btn btn-outline-info btn-sm" onclick="irAlInicio()">🏠 Inicio</button>
-      <button class="btn btn-outline-light btn-sm" onclick="showSection('admin')">⚙️ Admin</button>
-    </div>
-  </div>
+  <div class="container">
+    <span class="navbar-brand fw-bold">🧪 Química · I.E.T. San José</span>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-info btn-sm" onclick="irAlInicio()">🏠 Inicio</button>
+      <button class="btn btn-outline-light btn-sm" onclick="showSection('admin')">⚙️ Admin</button>
+    </div>
+  </div>
 </nav>
 
 <div class="container pb-5">
 
-  <!-- ══════════════════ LOGIN ══════════════════ -->
-  <section id="sec-login" class="card p-4 shadow-sm mx-auto" style="max-width:500px;">
-    <h3 class="text-center mb-4">Ingreso a Prueba</h3>
-    <div id="alerta-recuperacion-login" class="alerta-recuperacion hidden">
-      ⚠️ Se encontró una sesión guardada para <strong id="rec-info"></strong>. 
-      <br><button class="btn btn-warning btn-sm mt-2" onclick="recuperarSesion()">Continuar donde lo dejé</button>
-      <button class="btn btn-outline-secondary btn-sm mt-2 ms-1" onclick="descartarSesion()">Descartar y empezar de cero</button>
-    </div>
-    <div class="mb-3">
-      <label class="fw-bold">ID ZipGrade Estudiante:</label>
-      <input type="text" id="zipIdInput" class="form-control form-control-lg" placeholder="Ej: 1025" oninput="verificarSesionGuardada()">
-    </div>
-    <div class="mb-4">
-      <label class="fw-bold">Seleccionar Quiz:</label>
-      <select id="quizSelect" class="form-select form-select-lg" onchange="verificarSesionGuardada()"></select>
-    </div>
-    <button class="btn btn-primary btn-lg w-100" onclick="iniciarQuiz()">Empezar Cuestionario</button>
-  </section>
-
-  <!-- ══════════════════ QUIZ ══════════════════ -->
-  <section id="sec-quiz" class="hidden">
-    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-      <h5 id="quiz-titulo" class="text-primary fw-bold mb-0"></h5>
-      <div class="timer" id="reloj">00:00</div>
-    </div>
-
-    <!-- Barra de progreso -->
-    <div class="barra-progreso-quiz mb-1">
-      <div class="barra-progreso-quiz-fill" id="barra-fill" style="width:0%"></div>
-    </div>
-    <div class="d-flex justify-content-between mb-2">
-      <small class="text-muted" id="progreso-texto">Pregunta 1 de 1</small>
-      <small class="text-muted" id="respondidas-texto">0 respondidas</small>
-    </div>
-
-    <!-- Burbujas de navegación -->
-    <div class="burbujas-nav" id="burbujas-nav"></div>
-
-    <!-- Tarjeta de pregunta -->
-    <div class="card p-4 shadow-sm border-primary">
-      <div id="pregunta-container"></div>
-      <div class="navegacion-preguntas">
-        <button class="btn btn-outline-secondary" id="btn-anterior" onclick="irPregunta(indexActual - 1)">← Anterior</button>
-        <button class="btn btn-outline-primary" id="btn-siguiente" onclick="irPregunta(indexActual + 1)">Siguiente →</button>
-        <button class="btn btn-success px-4" id="btn-finalizar" onclick="confirmarFinalizar()">Enviar examen ✓</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ══════════════════ RETROALIMENTACIÓN ══════════════════ -->
-  <section id="sec-feedback" class="hidden">
-    <div class="text-center py-4">
-      <div class="resultado-score" id="fb-score">0</div>
-      <div class="resultado-pct" id="fb-pct"></div>
-      <p class="mt-2 text-muted" id="fb-nombre-quiz"></p>
-      <hr>
-      <h5 class="text-start mb-3">Revisión detallada</h5>
-    </div>
-    <div id="fb-detalle"></div>
-    <button class="btn btn-primary mt-3 w-100" onclick="irAlInicio()">🏠 Volver al inicio</button>
-  </section>
-
-  <!-- ══════════════════ ADMIN ══════════════════ -->
-  <section id="sec-admin" class="hidden">
-    <h3 class="mb-3">Gestión Académica</h3>
-    <ul class="nav nav-tabs mb-3">
-      <li class="nav-item"><a class="nav-link active" id="tab-link-nuevo" href="#" onclick="tabAdmin('nuevo')">Crear / Editar Quiz</a></li>
-      <li class="nav-item"><a class="nav-link" id="tab-link-notas" href="#" onclick="tabAdmin('notas')">Registro de Notas</a></li>
-    </ul>
-
-    <!-- TAB: Crear/Editar -->
-    <div id="admin-content-nuevo">
-      <div class="card p-4 shadow-sm mb-4 bg-white">
-        <h6 class="text-secondary fw-bold mb-2">¿Deseas editar un quiz existente?</h6>
-        <div class="input-group mb-4">
-          <select id="editQuizSelect" class="form-select border-info">
-            <option value="" selected>Selecciona un quiz para cargar sus preguntas...</option>
-          </select>
-          <button class="btn btn-outline-info fw-bold" onclick="cargarQuizParaEditar()">Cargar Quiz</button>
-        </div>
-        <hr class="mb-4">
-        <div class="row g-3 mb-4">
-          <div class="col-md-6">
-            <label class="small fw-bold text-uppercase">Nombre del Quiz</label>
-            <input type="text" id="adm-nombre" class="form-control" placeholder="Ej: Periodo 1 - Grado 10">
-          </div>
-          <div class="col-md-6">
-            <label class="small fw-bold text-uppercase">Tiempo por pregunta (segundos)</label>
-            <input type="number" id="adm-tiempo-global" class="form-control" placeholder="Ej: 60">
-          </div>
-        </div>
-
-        <div class="bg-light p-3 border rounded mb-3 shadow-sm">
-          <h6 class="text-secondary fw-bold mb-3">Añadir Pregunta</h6>
-
-          <!-- Enunciado con preview LaTeX -->
-          <label class="small fw-bold">Enunciado</label>
-          <textarea id="adm-p-txt" class="form-control mb-1" rows="2"
-            placeholder="Ej: Balancea la ecuación: $\ce{H2 + O2 -> H2O}$"
-            oninput="actualizarPreviewLatex()"></textarea>
-          <div class="latex-hint">💡 Usa <code>$\ce{H2SO4}$</code> para fórmulas, <code>$x^2$</code> para matemáticas. <a href="#" onclick="mostrarAyudaLatex()">Ver ejemplos</a></div>
-          <div id="preview-enunciado" class="mb-3"><span class="text-muted" style="font-size:0.8rem">Vista previa del enunciado aparecerá aquí...</span></div>
-
-          <input type="text" id="adm-p-img" class="form-control mb-2" placeholder="URL de Imagen de apoyo (opcional)">
-          <div class="row g-2 mb-2">
-            <div class="col-6"><input id="adm-p-a" class="form-control" placeholder="Opción A" oninput="actualizarPreviewOpciones()"></div>
-            <div class="col-6"><input id="adm-p-b" class="form-control" placeholder="Opción B" oninput="actualizarPreviewOpciones()"></div>
-            <div class="col-6"><input id="adm-p-c" class="form-control" placeholder="Opción C" oninput="actualizarPreviewOpciones()"></div>
-            <div class="col-6"><input id="adm-p-d" class="form-control" placeholder="Opción D" oninput="actualizarPreviewOpciones()"></div>
-          </div>
-          <div class="row g-2">
-            <div class="col-6">
-              <select id="adm-p-corr" class="form-select border-primary">
-                <option value="" disabled selected>-- Respuesta Correcta --</option>
-                <option value="A">Opción A</option><option value="B">Opción B</option>
-                <option value="C">Opción C</option><option value="D">Opción D</option>
-              </select>
-            </div>
-            <div class="col-6">
-              <input type="number" id="adm-p-puntos" class="form-control" placeholder="Puntaje (Defecto: 1)">
-            </div>
-          </div>
-          <button class="btn btn-secondary w-100 mt-3" onclick="addPreguntaALista()">Añadir a la lista temporal</button>
-        </div>
-
-        <!-- Modal ayuda LaTeX -->
-        <div id="modal-latex" class="hidden" style="background:#f0f4ff;border:1px solid #b6ccfe;border-radius:8px;padding:16px;margin-bottom:12px;">
-          <h6 class="fw-bold">📐 Referencia rápida de fórmulas</h6>
-          <table class="table table-sm table-bordered mb-0" style="font-size:0.82rem;">
-            <thead class="table-primary"><tr><th>Lo que escribes</th><th>Resultado</th></tr></thead>
-            <tbody>
-              <tr><td><code>$\ce{H2SO4}$</code></td><td id="ex1">H₂SO₄</td></tr>
-              <tr><td><code>$\ce{2H2 + O2 -> 2H2O}$</code></td><td id="ex2">2H₂ + O₂ → 2H₂O</td></tr>
-              <tr><td><code>$\ce{Fe^{2+}}$</code></td><td id="ex3">Fe²⁺</td></tr>
-              <tr><td><code>$x^{2} + y^{2} = r^{2}$</code></td><td id="ex4">x² + y² = r²</td></tr>
-              <tr><td><code>$\frac{mol}{L}$</code></td><td id="ex5">mol/L</td></tr>
-              <tr><td><code>$\Delta H = -286\ kJ/mol$</code></td><td id="ex6">ΔH = -286 kJ/mol</td></tr>
-            </tbody>
-          </table>
-          <button class="btn btn-sm btn-outline-secondary mt-2" onclick="ocultarAyudaLatex()">Cerrar</button>
-        </div>
-
-        <div class="mt-4">
-          <h6>Preguntas en el Quiz: <span id="contador-pre" class="badge bg-primary">0</span></h6>
-          <div class="table-responsive border rounded bg-white" style="max-height:250px;">
-            <table class="table table-sm table-hover mb-0">
-              <thead class="table-light"><tr><th>#</th><th>Enunciado</th><th>Corr</th><th>Pts</th><th colspan="2">Acción</th></tr></thead>
-              <tbody id="lista-pre-temp-body">
-                <tr><td colspan="5" class="text-center text-muted">Aún no hay preguntas en este quiz</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <button id="btn-publicar" class="btn btn-success w-100 btn-lg mt-4 shadow" onclick="publicarQuiz()">🚀 GUARDAR / ACTUALIZAR QUIZ EN SHEETS</button>
-      </div>
-    </div>
-
-    <!-- TAB: Notas -->
-    <div id="admin-content-notas" class="hidden">
-      <div class="mb-3 d-flex gap-2 align-items-center flex-wrap">
-        <label class="fw-bold mb-0">Filtrar por Quiz:</label>
-        <select id="filtroQuizNotas" class="form-select w-auto" onchange="cargarNotas()">
-          <option value="">Todos los quizzes</option>
-        </select>
-        <div class="ms-auto d-flex gap-2 flex-wrap">
-          <button class="btn btn-outline-primary btn-sm" onclick="exportarNotasVisibles()">📄 Exportar vista actual (CSV)</button>
-          <button class="btn btn-success btn-sm" onclick="exportarNotasCompleto()">📥 Exportar todos los estudiantes (con nota 1 si no presentó)</button>
-        </div>
-      </div>
-      <div class="table-responsive bg-white p-3 border rounded shadow-sm" id="tabla-notas"></div>
-    </div>
-  </section>
-
-</div><!-- /container -->
-
-<script>
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzn9WMJUm-smSA7odpX1Q4t-6fbhIw6M80MZHZa2Au6BXRM_RPiJcKqO5lH4DJj-T3F/exec';
-  const LS_KEY = 'iet_quiz_sesion';
-
-  let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null,
-      timerInterval, quizPreguntasLista = [], notasVisiblesData = [], editandoIndex = -1;
-
-  // ─── LOADING ───────────────────────────────────────────────
-  function setLoading(show, msg = 'Cargando...') {
-    document.getElementById('loading-overlay').classList.toggle('hidden', !show);
-    document.getElementById('loading-msg').innerText = msg;
-  }
-
-  // ─── API ───────────────────────────────────────────────────
-  async function callAPI(params, method = 'POST') {
-    setLoading(true, params.action === 'cargarPreguntas' ? 'Cargando preguntas...' :
-                     params.action === 'guardarResultado' ? 'Guardando resultado...' : 'Procesando...');
-    try {
-      let url = WEB_APP_URL, options = { method, redirect: 'follow' };
-      if (method === 'GET') {
-        url += '?' + new URLSearchParams(params).toString();
-      } else {
-        options.body = JSON.stringify(params);
-        options.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
-      }
-      const response = await fetch(url, options);
-      return await response.json();
-    } catch (e) {
-      console.error("Error en comunicación:", e);
-      return { success: false, error: "Error de conexión con Google." };
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ─── MATHJAX ───────────────────────────────────────────────
-  async function typeset(el) {
-    if (window.MathJax && window.MathJax.typesetPromise) {
-      await MathJax.typesetPromise([el]);
-    }
-  }
-
-  function actualizarPreviewLatex() {
-    const txt = document.getElementById('adm-p-txt').value;
-    const prev = document.getElementById('preview-enunciado');
-    prev.innerHTML = txt || '<span class="text-muted" style="font-size:0.8rem">Vista previa...</span>';
-    typeset(prev);
-  }
-
-  function actualizarPreviewOpciones() { /* solo actualiza el preview del enunciado por ahora */ }
-
-  function mostrarAyudaLatex() {
-    document.getElementById('modal-latex').classList.remove('hidden');
-    // renderizar ejemplos
-    ['ex1','ex2','ex3','ex4','ex5','ex6'].forEach(id => typeset(document.getElementById(id)));
-  }
-  function ocultarAyudaLatex() { document.getElementById('modal-latex').classList.add('hidden'); }
-
-  // ─── AUTOGUARDADO EN LOCALSTORAGE ──────────────────────────
-  function guardarSesionLocal() {
-    if (!infoEstudiante) return;
-    const sesion = {
-      infoEstudiante,
-      quizNombre: document.getElementById('quiz-titulo').innerText,
-      preguntas,
-      respuestasUser,
-      indexActual,
-      timestamp: Date.now()
-    };
-    localStorage.setItem(LS_KEY, JSON.stringify(sesion));
-    // Mostrar badge
-    const badge = document.getElementById('badge-autoguardado');
-    badge.classList.add('visible');
-    setTimeout(() => badge.classList.remove('visible'), 1800);
-  }
-
-  function verificarSesionGuardada() {
-    const zip = document.getElementById('zipIdInput').value.trim();
-    const quiz = document.getElementById('quizSelect').value;
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return;
-    try {
-      const s = JSON.parse(raw);
-      const div = document.getElementById('alerta-recuperacion-login');
-      if (s.infoEstudiante && s.quizNombre === quiz && String(s.infoEstudiante.zipID) === zip) {
-        document.getElementById('rec-info').innerText = `${s.infoEstudiante.nombre || zip} – ${s.quizNombre} (${s.respuestasUser.filter(r=>r&&r!=='').length} resp. guardadas)`;
-        div.classList.remove('hidden');
-      } else {
-        div.classList.add('hidden');
-      }
-    } catch(_) {}
-  }
-
-  function recuperarSesion() {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return;
-    const s = JSON.parse(raw);
-    infoEstudiante = s.infoEstudiante;
-    preguntas = s.preguntas;
-    respuestasUser = s.respuestasUser;
-    indexActual = s.indexActual;
-    document.getElementById('quiz-titulo').innerText = s.quizNombre;
-    document.getElementById('alerta-recuperacion-login').classList.add('hidden');
-    showSection('quiz');
-    renderBurbujas();
-    mostrarPregunta();
-  }
-
-  function descartarSesion() {
-    localStorage.removeItem(LS_KEY);
-    document.getElementById('alerta-recuperacion-login').classList.add('hidden');
-  }
-
-  // ─── CARGA INICIAL ─────────────────────────────────────────
-  window.onload = async () => {
-    await cargarFiltrosQuizzes();
-  };
-
-  async function cargarFiltrosQuizzes() {
-    const res = await callAPI({ action: 'getQuizzes' }, 'GET');
-    const selEst = document.getElementById('quizSelect');
-    const selAdm = document.getElementById('editQuizSelect');
-    const selFil = document.getElementById('filtroQuizNotas');
-    selEst.innerHTML = '<option value="" disabled selected>Seleccione un examen disponible</option>';
-    selAdm.innerHTML = '<option value="" disabled selected>Selecciona un quiz para cargar...</option>';
-    selFil.innerHTML = '<option value="">Todos los quizzes</option>';
-    if (res.success && res.data.length > 0) {
-      res.data.forEach(q => {
-        const mk = (v,t,d) => { let o=document.createElement('option');o.value=v;o.text=t;if(d)o.dataset.tiempo=d;return o; };
-        selEst.add(mk(q.nombre, q.nombre, q.tiempo));
-        selAdm.add(mk(q.nombre, q.nombre, q.tiempo));
-        selFil.add(mk(q.nombre, q.nombre));
-      });
-    }
-  }
-
-  // ─── INICIAR QUIZ ──────────────────────────────────────────
-  async function iniciarQuiz() {
-    const zip = document.getElementById('zipIdInput').value.trim();
-    const quizName = document.getElementById('quizSelect').value;
-    if (!zip || !quizName) return alert("Por favor complete su ID y seleccione un quiz.");
-
-    // 1. Validar estudiante
-    const userRes = await callAPI({ action: 'validarEstudiante', zipID: zip }, 'POST');
-    if (!userRes.success) return alert("❌ " + (userRes.error || "ID ZipGrade no reconocido."));
-    infoEstudiante = userRes.data;
-
-    // 2. Verificar intento único
-    const intentoRes = await callAPI({ action: 'verificarIntento', zipID: zip, nombreQuiz: quizName }, 'POST');
-    if (!intentoRes.success) return alert("❌ Error al verificar intentos: " + (intentoRes.error || ""));
-    if (intentoRes.yaPresento) return alert("⚠️ Ya presentaste este quiz anteriormente. Solo se permite un intento.");
-
-    // 3. Registrar intento (bloqueo inmediato)
-    const regRes = await callAPI({ action: 'registrarIntento', zipID: zip, nombreQuiz: quizName, nombre: infoEstudiante.nombre || zip }, 'POST');
-    if (!regRes.success) return alert("❌ No se pudo registrar el intento: " + (regRes.error || ""));
-
-    // 4. Cargar preguntas
-    const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
-    if (!qRes.success) return alert("❌ " + (qRes.error || "No se pudieron cargar las preguntas."));
-
-    preguntas = qRes.data;
-    indexActual = 0;
-    respuestasUser = new Array(preguntas.length).fill('');
-    document.getElementById('quiz-titulo').innerText = quizName;
-    descartarSesion(); // limpiar sesión previa si la había
-    showSection('quiz');
-    renderBurbujas();
-    mostrarPregunta();
-  }
-
-  // ─── PAGINACIÓN: RENDERIZAR BURBUJAS ───────────────────────
-  function renderBurbujas() {
-    const cont = document.getElementById('burbujas-nav');
-    cont.innerHTML = '';
-    preguntas.forEach((_, i) => {
-      const b = document.createElement('div');
-      b.className = 'burbuja' + (i === indexActual ? ' actual' : '') + (respuestasUser[i] ? ' respondida' : '');
-      b.innerText = i + 1;
-      b.onclick = () => { guardarRespuestaActual(); irPregunta(i); };
-      cont.appendChild(b);
-    });
-  }
-
-  function actualizarBurbujas() {
-    const burbujas = document.querySelectorAll('.burbuja');
-    burbujas.forEach((b, i) => {
-      b.className = 'burbuja' + (i === indexActual ? ' actual' : '') + (respuestasUser[i] ? ' respondida' : '');
-    });
-  }
-
-  // ─── MOSTRAR PREGUNTA ──────────────────────────────────────
-  function mostrarPregunta() {
-    clearInterval(timerInterval);
-    if (indexActual >= preguntas.length) return; // no auto-finalizar
-
-    const p = preguntas[indexActual];
-    const total = preguntas.length;
-    const resp = respuestasUser[indexActual];
-
-    // Barra y textos de progreso
-    const respondidas = respuestasUser.filter(r => r && r !== '').length;
-    document.getElementById('barra-fill').style.width = ((respondidas / total) * 100) + '%';
-    document.getElementById('progreso-texto').innerText = `Pregunta ${indexActual + 1} de ${total}`;
-    document.getElementById('respondidas-texto').innerText = `${respondidas} respondida${respondidas !== 1 ? 's' : ''}`;
-
-    // HTML de la pregunta
-    let html = `<h5 class="mb-3">${p.enunciado} <span class="badge bg-secondary ms-2">${p.puntos} pt${p.puntos !== 1 ? 's' : ''}</span></h5>`;
-    if (p.imagen) html += `<img src="${p.imagen}" class="pregunta-img" onerror="this.style.display='none'">`;
-    html += `<div class="list-group mt-3">`;
-    ['A','B','C','D'].forEach((l, i) => {
-      const checked = resp === l ? 'checked' : '';
-      html += `<label class="list-group-item list-group-item-action" style="cursor:pointer;">
-        <input class="form-check-input me-3" type="radio" name="resp" value="${l}" ${checked} onchange="onRespuestaChange(this)">
-        <b>${l}.</b> ${p.opciones[i] || ''}
-      </label>`;
-    });
-    html += `</div>`;
-
-    const cont = document.getElementById('pregunta-container');
-    cont.innerHTML = html;
-
-    // Renderizar MathJax
-    typeset(cont);
-
-    // Controles de navegación
-    document.getElementById('btn-anterior').disabled = indexActual === 0;
-    document.getElementById('btn-siguiente').style.display = indexActual < total - 1 ? '' : 'none';
-    document.getElementById('btn-finalizar').style.display = indexActual === total - 1 ? '' : 'none';
-
-    actualizarBurbujas();
-    iniciarCronometro();
-  }
-
-  function onRespuestaChange(radio) {
-    respuestasUser[indexActual] = radio.value;
-    guardarSesionLocal();
-    actualizarBurbujas();
-    // actualizar conteo
-    const resp = respuestasUser.filter(r => r && r !== '').length;
-    document.getElementById('respondidas-texto').innerText = `${resp} respondida${resp !== 1 ? 's' : ''}`;
-    document.getElementById('barra-fill').style.width = ((resp / preguntas.length) * 100) + '%';
-  }
-
-  function guardarRespuestaActual() {
-    const sel = document.querySelector('input[name="resp"]:checked');
-    if (sel) respuestasUser[indexActual] = sel.value;
-  }
-
-  function irPregunta(idx) {
-    if (idx < 0 || idx >= preguntas.length) return;
-    guardarRespuestaActual();
-    indexActual = idx;
-    mostrarPregunta();
-  }
-
-  // ─── CRONÓMETRO ────────────────────────────────────────────
-  function iniciarCronometro() {
-    clearInterval(timerInterval);
-    const opt = document.getElementById('quizSelect').selectedOptions[0];
-    if (!opt || !opt.dataset.tiempo) return;
-    let tiempo = parseInt(opt.dataset.tiempo);
-    const reloj = document.getElementById('reloj');
-    timerInterval = setInterval(() => {
-      let m = Math.floor(tiempo / 60), s = tiempo % 60;
-      reloj.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-      reloj.classList.toggle('urgente', tiempo <= 10);
-      if (--tiempo < 0) {
-        clearInterval(timerInterval);
-        // Pasar a la siguiente automáticamente
-        guardarRespuestaActual();
-        if (indexActual < preguntas.length - 1) {
-          indexActual++;
-          mostrarPregunta();
-        }
-        // Si era la última, se queda ahí y el estudiante envía manualmente
-      }
-    }, 1000);
-  }
-
-  // ─── CONFIRMAR Y FINALIZAR ─────────────────────────────────
-  function confirmarFinalizar() {
-    guardarRespuestaActual();
-    const sinResponder = respuestasUser.filter(r => !r || r === '').length;
-    const msg = sinResponder > 0
-      ? `Tienes ${sinResponder} pregunta${sinResponder > 1 ? 's' : ''} sin responder. ¿Deseas enviar el examen de todas formas?`
-      : '¿Deseas enviar el examen ahora?';
-    if (!confirm(msg)) return;
-    finalizarQuiz();
-  }
-
-  async function finalizarQuiz() {
-    clearInterval(timerInterval);
-    guardarRespuestaActual();
-
-    let pts = 0;
-    respuestasUser.forEach((r, i) => { if (r === preguntas[i].correcta) pts += preguntas[i].puntos; });
-
-    const res = await callAPI({
-      action: 'guardarResultado',
-      res: { ...infoEstudiante, quiz: document.getElementById('quiz-titulo').innerText, puntaje: pts }
-    }, 'POST');
-
-    if (!res.success) return alert("❌ Error al guardar resultado: " + res.error);
-
-    // Limpiar sesión guardada
-    localStorage.removeItem(LS_KEY);
-
-    // Mostrar retroalimentación
-    mostrarRetroalimentacion(pts);
-  }
-
-  // ─── RETROALIMENTACIÓN ─────────────────────────────────────
-  function mostrarRetroalimentacion(pts) {
-    const total = preguntas.reduce((s, p) => s + p.puntos, 0);
-    const pct = total > 0 ? Math.round((pts / total) * 100) : 0;
-
-    document.getElementById('fb-score').innerText = pts + ' / ' + total + ' pts';
-    document.getElementById('fb-pct').innerText = pct + '% de aciertos';
-    document.getElementById('fb-nombre-quiz').innerText = document.getElementById('quiz-titulo').innerText;
-
-    let html = '';
-    preguntas.forEach((p, i) => {
-      const resp = respuestasUser[i] || '';
-      const correcta = p.correcta;
-      const acerto = resp === correcta;
-      const sinResp = !resp || resp === '';
-
-      let clase = sinResp ? 'feedback-sin-responder' : (acerto ? 'feedback-correcto' : 'feedback-incorrecto');
-      let icono = sinResp ? '⚠️' : (acerto ? '✅' : '❌');
-
-      html += `<div class="feedback-item ${clase}">
-        <div class="d-flex gap-2 align-items-start mb-2">
-          <span style="font-size:1.2rem">${icono}</span>
-          <div style="flex:1"><strong>Pregunta ${i+1}:</strong> ${p.enunciado}</div>
-        </div>`;
-
-      if (p.imagen) html += `<img src="${p.imagen}" class="pregunta-img mb-2" onerror="this.style.display='none'">`;
-
-      // Mostrar opciones
-      html += `<div class="list-group list-group-flush mb-2">`;
-      ['A','B','C','D'].forEach((l, j) => {
-        let cls = 'list-group-item py-1 px-2';
-        if (l === correcta) cls += ' opcion-correcta';
-        else if (l === resp && !acerto) cls += ' opcion-incorrecta-sel';
-        const marca = l === correcta ? ' ✓ (correcta)' : (l === resp && !acerto ? ' ✗ (tu respuesta)' : '');
-        html += `<div class="${cls}" style="font-size:0.9rem"><b>${l}.</b> ${p.opciones[j]}${marca}</div>`;
-      });
-      html += `</div>`;
-
-      if (sinResp) html += `<small class="text-warning-emphasis">No respondiste esta pregunta.</small>`;
-      html += `</div>`;
-    });
-
-    document.getElementById('fb-detalle').innerHTML = html;
-    showSection('feedback');
-    // Renderizar fórmulas en la retroalimentación
-    typeset(document.getElementById('fb-detalle'));
-  }
-
-  // ─── NAVEGACIÓN ────────────────────────────────────────────
-  function irAlInicio() {
-    clearInterval(timerInterval);
-    document.getElementById('zipIdInput').value = '';
-    document.getElementById('alerta-recuperacion-login').classList.add('hidden');
-    preguntas = []; indexActual = 0; respuestasUser = []; quizPreguntasLista = [];
-    document.getElementById('adm-nombre').value = '';
-    actualizarTablaAdmin();
-    showSection('login');
-    cargarFiltrosQuizzes();
-  }
-
-  function showSection(id) {
-    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-    document.getElementById('sec-' + id).classList.remove('hidden');
-  }
-
-  function tabAdmin(t) {
-    ['nuevo','notas'].forEach(x => {
-      document.getElementById('tab-link-' + x).classList.toggle('active', x === t);
-      document.getElementById('admin-content-' + x).classList.toggle('hidden', x !== t);
-    });
-    if (t === 'notas') cargarNotas();
-  }
-
-  // ─── ADMIN: CREAR / EDITAR ─────────────────────────────────
-  async function cargarQuizParaEditar() {
-    const quizName = document.getElementById('editQuizSelect').value;
-    if (!quizName) return;
-    const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
-    if (!qRes.success) return alert("❌ " + (qRes.error || "Error al cargar las preguntas."));
-    document.getElementById('adm-nombre').value = quizName;
-    const opt = document.getElementById('editQuizSelect').selectedOptions[0];
-    document.getElementById('adm-tiempo-global').value = opt.dataset.tiempo || '';
-    quizPreguntasLista = qRes.data.map(p => ({
-      texto: p.enunciado, img: p.imagen,
-      a: p.opciones[0], b: p.opciones[1], c: p.opciones[2], d: p.opciones[3],
-      correcta: p.correcta, puntos: p.puntos
-    }));
-    actualizarTablaAdmin();
-    alert("✅ Quiz cargado en el editor.");
-  }
-
-  function addPreguntaALista() {
-    const texto = document.getElementById('adm-p-txt').value;
-    const correcta = document.getElementById('adm-p-corr').value;
-    if (!texto || !correcta) return alert("Debe ingresar al menos el enunciado y la respuesta correcta.");
-    const datos = {
-      texto, img: document.getElementById('adm-p-img').value,
-      a: document.getElementById('adm-p-a').value, b: document.getElementById('adm-p-b').value,
-      c: document.getElementById('adm-p-c').value, d: document.getElementById('adm-p-d').value,
-      correcta, puntos: parseFloat(document.getElementById('adm-p-puntos').value) || 1
-    };
-    if (editandoIndex >= 0) {
-      quizPreguntasLista[editandoIndex] = datos;
-      editandoIndex = -1;
-      document.querySelector('#admin-content-nuevo .bg-light h6').innerText = 'Añadir Pregunta';
-      document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Añadir a la lista temporal';
-    } else {
-      quizPreguntasLista.push(datos);
-    }
-    actualizarTablaAdmin();
-    ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('adm-p-corr').value = '';
-    document.getElementById('preview-enunciado').innerHTML = '<span class="text-muted" style="font-size:0.8rem">Vista previa...</span>';
-  }
-
-  function editarPregunta(index) {
-    const p = quizPreguntasLista[index];
-    editandoIndex = index;
-    document.getElementById('adm-p-txt').value = p.texto;
-    document.getElementById('adm-p-img').value = p.img || '';
-    document.getElementById('adm-p-a').value = p.a || '';
-    document.getElementById('adm-p-b').value = p.b || '';
-    document.getElementById('adm-p-c').value = p.c || '';
-    document.getElementById('adm-p-d').value = p.d || '';
-    document.getElementById('adm-p-corr').value = p.correcta;
-    document.getElementById('adm-p-puntos').value = p.puntos;
-    document.querySelector('#admin-content-nuevo .bg-light h6').innerText = `✏️ Editando pregunta #${index + 1}`;
-    document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Guardar cambios';
-    actualizarPreviewLatex();
-    document.getElementById('adm-p-txt').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  function quitarPregunta(index) {
-    if (editandoIndex === index) {
-      editandoIndex = -1;
-      document.querySelector('#admin-content-nuevo .bg-light h6').innerText = 'Añadir Pregunta';
-      document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Añadir a la lista temporal';
-      ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('adm-p-corr').value = '';
-    }
-    quizPreguntasLista.splice(index, 1);
-    actualizarTablaAdmin();
-  }
-
-  function actualizarTablaAdmin() {
-    document.getElementById('contador-pre').innerText = quizPreguntasLista.length;
-    const body = document.getElementById('lista-pre-temp-body');
-    if (quizPreguntasLista.length === 0) {
-      body.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aún no hay preguntas</td></tr>'; return;
-    }
-    body.innerHTML = quizPreguntasLista.map((p, i) => `<tr ${editandoIndex === i ? 'class="table-warning"' : ''}>
-      <td>${i+1}</td>
-      <td class="text-truncate" style="max-width:180px;">${p.texto}</td>
-      <td>${p.correcta}</td><td>${p.puntos}</td>
-      <td><button onclick="editarPregunta(${i})" class="btn btn-sm btn-warning py-0 px-2">✏️</button></td>
-      <td><button onclick="quitarPregunta(${i})" class="btn btn-sm btn-danger py-0 px-2">✕</button></td>
-    </tr>`).join('');
-  }
-
-  async function publicarQuiz() {
-    const nombre = document.getElementById('adm-nombre').value.trim();
-    if (!nombre || quizPreguntasLista.length === 0) return alert("Faltan datos o no hay preguntas.");
-    const btn = document.getElementById('btn-publicar');
-    btn.disabled = true; btn.innerText = "⏳ Procesando...";
-    const res = await callAPI({
-      action: 'guardarNuevoQuiz',
-      datos: { nombre, tiempo: document.getElementById('adm-tiempo-global').value, preguntas: quizPreguntasLista }
-    }, 'POST');
-    btn.disabled = false; btn.innerText = "🚀 GUARDAR / ACTUALIZAR QUIZ EN SHEETS";
-    if (res.success) { alert("✅ Quiz guardado exitosamente."); irAlInicio(); }
-    else alert("❌ Error: " + res.error);
-  }
-
-  // ─── NOTAS ─────────────────────────────────────────────────
-  async function cargarNotas() {
-    const filtro = document.getElementById('filtroQuizNotas').value;
-    const params = { action: 'obtenerNotas' };
-    if (filtro) params.nombreQuiz = filtro;
-    const res = await callAPI(params, 'GET');
-    notasVisiblesData = res.data || [];
-    if (!res.success || notasVisiblesData.length <= 1) {
-      document.getElementById('tabla-notas').innerHTML = "<p class='text-center mt-3'>No hay notas registradas.</p>"; return;
-    }
-    let html = '<table class="table table-striped table-sm mt-3"><thead><tr class="table-dark">';
-    notasVisiblesData[0].forEach(h => html += `<th>${h}</th>`);
-    html += '</tr></thead><tbody>';
-    for (let i = 1; i < notasVisiblesData.length; i++) {
-      html += '<tr>' + notasVisiblesData[i].map((c, idx) => `<td>${idx === 5 ? new Date(c).toLocaleString() : c}</td>`).join('') + '</tr>';
-    }
-    document.getElementById('tabla-notas').innerHTML = html + '</tbody></table>';
-  }
-
-  // Exportar lo que se ve actualmente en la tabla
-  function exportarNotasVisibles() {
-    if (!notasVisiblesData || notasVisiblesData.length <= 1) return alert("No hay datos para exportar.");
-    descargarCSV(notasVisiblesData, 'notas_reporte.csv');
-  }
-
-  // Exportar todos los estudiantes con nota 1 si no presentaron
-  async function exportarNotasCompleto() {
-    const filtro = document.getElementById('filtroQuizNotas').value;
-    if (!filtro) return alert("Selecciona un quiz específico para exportar el reporte completo.");
-    const res = await callAPI({ action: 'exportarNotasCompleto', nombreQuiz: filtro }, 'GET');
-    if (!res.success || !res.data || res.data.length <= 1)
-      return alert("❌ No se pudo generar el reporte: " + (res.error || "Sin datos."));
-    descargarCSV(res.data, `notas_completo_${filtro.replace(/\s+/g,'_')}.csv`);
-  }
-
-  function descargarCSV(data, filename) {
-    const csv = '\uFEFF' + data.map(fila =>
-      fila.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')
-    ).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
-  }
+    <section id="sec-login" class="card p-4 shadow-sm mx-auto" style="max-width:500px;">
+    <h3 class="text-center mb-4">Ingreso a Prueba</h3>
+    <div id="alerta-recuperacion-login" class="alerta-recuperacion hidden">
+      ⚠️ Se encontró una sesión guardada para <strong id="rec-info"></strong>. 
+      <br><button class="btn btn-warning btn-sm mt-2" onclick="recuperarSesion()">Continuar donde lo dejé</button>
+      <button class="btn btn-outline-secondary btn-sm mt-2 ms-1" onclick="descartarSesion()">Descartar y empezar de cero</button>
+    </div>
+    <div class="mb-3">
+      <label class="fw-bold">ID ZipGrade Estudiante:</label>
+      <input type="text" id="zipIdInput" class="form-control form-control-lg" placeholder="Ej: 1025" oninput="verificarSesionGuardada()">
+    </div>
+    <div class="mb-4">
+      <label class="fw-bold">Seleccionar Quiz:</label>
+      <select id="quizSelect" class="form-select form-select-lg" onchange="verificarSesionGuardada()"></select>
+    </div>
+    <button class="btn btn-primary btn-lg w-100" onclick="iniciarQuiz()">Empezar Cuestionario</button>
+  </section>
+
+    <section id="sec-quiz" class="hidden">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+      <h5 id="quiz-titulo" class="text-primary fw-bold mb-0"></h5>
+      <div class="timer" id="reloj">00:00</div>
+    </div>
+
+        <div class="barra-progreso-quiz mb-1">
+      <div class="barra-progreso-quiz-fill" id="barra-fill" style="width:0%"></div>
+    </div>
+    <div class="d-flex justify-content-between mb-2">
+      <small class="text-muted" id="progreso-texto">Pregunta 1 de 1</small>
+      <small class="text-muted" id="respondidas-texto">0 respondidas</small>
+    </div>
+
+        <div class="burbujas-nav" id="burbujas-nav"></div>
+
+        <div class="card p-4 shadow-sm border-primary">
+      <div id="pregunta-container"></div>
+      <div class="navegacion-preguntas">
+        <button class="btn btn-outline-secondary" id="btn-anterior" onclick="irPregunta(indexActual - 1)">← Anterior</button>
+        <button class="btn btn-outline-primary" id="btn-siguiente" onclick="irPregunta(indexActual + 1)">Siguiente →</button>
+        <button class="btn btn-success px-4" id="btn-finalizar" onclick="confirmarFinalizar()">Enviar examen ✓</button>
+      </div>
+    </div>
+  </section>
+
+    <section id="sec-feedback" class="hidden">
+    <div class="text-center py-4">
+      <div class="resultado-score" id="fb-score">0</div>
+      <div class="resultado-pct" id="fb-pct"></div>
+      <p class="mt-2 text-muted" id="fb-nombre-quiz"></p>
+      <hr>
+      <h5 class="text-start mb-3">Revisión detallada</h5>
+    </div>
+    <div id="fb-detalle"></div>
+    <button class="btn btn-primary mt-3 w-100" onclick="irAlInicio()">🏠 Volver al inicio</button>
+  </section>
+
+    <section id="sec-admin" class="hidden">
+    <h3 class="mb-3">Gestión Académica</h3>
+    <ul class="nav nav-tabs mb-3">
+      <li class="nav-item"><a class="nav-link active" id="tab-link-nuevo" href="#" onclick="tabAdmin('nuevo')">Crear / Editar Quiz</a></li>
+      <li class="nav-item"><a class="nav-link" id="tab-link-notas" href="#" onclick="tabAdmin('notas')">Registro de Notas</a></li>
+    </ul>
+
+        <div id="admin-content-nuevo">
+      <div class="card p-4 shadow-sm mb-4 bg-white">
+        <h6 class="text-secondary fw-bold mb-2">¿Deseas editar un quiz existente?</h6>
+        <div class="input-group mb-4">
+          <select id="editQuizSelect" class="form-select border-info">
+            <option value="" selected>Selecciona un quiz para cargar sus preguntas...</option>
+          </select>
+          <button class="btn btn-outline-info fw-bold" onclick="cargarQuizParaEditar()">Cargar Quiz</button>
+        </div>
+        <hr class="mb-4">
+        <div class="row g-3 mb-4">
+          <div class="col-md-5">
+            <label class="small fw-bold text-uppercase">Nombre del Quiz</label>
+            <input type="text" id="adm-nombre" class="form-control" placeholder="Ej: Periodo 1 - Grado 10">
+          </div>
+          <div class="col-md-4">
+            <label class="small fw-bold text-uppercase">Tiempo por pregunta (segundos)</label>
+            <input type="number" id="adm-tiempo-global" class="form-control" placeholder="Ej: 60">
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="adm-feedback">
+              <label class="form-check-label small fw-bold text-uppercase" for="adm-feedback">Habilitar Retroalimentación</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-light p-3 border rounded mb-3 shadow-sm">
+          <h6 class="text-secondary fw-bold mb-3">Añadir Pregunta</h6>
+
+                    <label class="small fw-bold">Enunciado</label>
+          <textarea id="adm-p-txt" class="form-control mb-1" rows="2"
+            placeholder="Ej: Balancea la ecuación: $\ce{H2 + O2 -> H2O}$"
+            oninput="actualizarPreviewLatex()"></textarea>
+          <div class="latex-hint">💡 Usa <code>$\ce{H2SO4}$</code> para fórmulas, <code>$x^2$</code> para matemáticas. <a href="#" onclick="mostrarAyudaLatex()">Ver ejemplos</a></div>
+          <div id="preview-enunciado" class="mb-3"><span class="text-muted" style="font-size:0.8rem">Vista previa del enunciado aparecerá aquí...</span></div>
+
+          <input type="text" id="adm-p-img" class="form-control mb-2" placeholder="URL de Imagen de apoyo (opcional)">
+          <div class="row g-2 mb-2">
+            <div class="col-6"><input id="adm-p-a" class="form-control" placeholder="Opción A" oninput="actualizarPreviewOpciones()"></div>
+            <div class="col-6"><input id="adm-p-b" class="form-control" placeholder="Opción B" oninput="actualizarPreviewOpciones()"></div>
+            <div class="col-6"><input id="adm-p-c" class="form-control" placeholder="Opción C" oninput="actualizarPreviewOpciones()"></div>
+            <div class="col-6"><input id="adm-p-d" class="form-control" placeholder="Opción D" oninput="actualizarPreviewOpciones()"></div>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <select id="adm-p-corr" class="form-select border-primary">
+                <option value="" disabled selected>-- Respuesta Correcta --</option>
+                <option value="A">Opción A</option><option value="B">Opción B</option>
+                <option value="C">Opción C</option><option value="D">Opción D</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <input type="number" id="adm-p-puntos" class="form-control" placeholder="Puntaje (Defecto: 1)">
+            </div>
+          </div>
+          <button class="btn btn-secondary w-100 mt-3" onclick="addPreguntaALista()">Añadir a la lista temporal</button>
+        </div>
+
+                <div id="modal-latex" class="hidden" style="background:#f0f4ff;border:1px solid #b6ccfe;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <h6 class="fw-bold">📐 Referencia rápida de fórmulas</h6>
+          <table class="table table-sm table-bordered mb-0" style="font-size:0.82rem;">
+            <thead class="table-primary"><tr><th>Lo que escribes</th><th>Resultado</th></tr></thead>
+            <tbody>
+              <tr><td><code>$\ce{H2SO4}$</code></td><td id="ex1">H₂SO₄</td></tr>
+              <tr><td><code>$\ce{2H2 + O2 -> 2H2O}$</code></td><td id="ex2">2H₂ + O₂ → 2H₂O</td></tr>
+              <tr><td><code>$\ce{Fe^{2+}}$</code></td><td id="ex3">Fe²⁺</td></tr>
+              <tr><td><code>$x^{2} + y^{2} = r^{2}$</code></td><td id="ex4">x² + y² = r²</td></tr>
+              <tr><td><code>$\frac{mol}{L}$</code></td><td id="ex5">mol/L</td></tr>
+              <tr><td><code>$\Delta H = -286\ kJ/mol$</code></td><td id="ex6">ΔH = -286 kJ/mol</td></tr>
+            </tbody>
+          </table>
+          <button class="btn btn-sm btn-outline-secondary mt-2" onclick="ocultarAyudaLatex()">Cerrar</button>
+        </div>
+
+        <div class="mt-4">
+          <h6>Preguntas en el Quiz: <span id="contador-pre" class="badge bg-primary">0</span></h6>
+          <div class="table-responsive border rounded bg-white" style="max-height:250px;">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light"><tr><th>#</th><th>Enunciado</th><th>Corr</th><th>Pts</th><th colspan="2">Acción</th></tr></thead>
+              <tbody id="lista-pre-temp-body">
+                <tr><td colspan="5" class="text-center text-muted">Aún no hay preguntas en este quiz</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <button id="btn-publicar" class="btn btn-success w-100 btn-lg mt-4 shadow" onclick="publicarQuiz()">🚀 GUARDAR / ACTUALIZAR QUIZ EN SHEETS</button>
+      </div>
+    </div>
+
+        <div id="admin-content-notas" class="hidden">
+      <div class="mb-3 d-flex gap-2 align-items-center flex-wrap">
+        <label class="fw-bold mb-0">Filtrar por Quiz:</label>
+        <select id="filtroQuizNotas" class="form-select w-auto" onchange="cargarNotas()">
+          <option value="">Todos los quizzes</option>
+        </select>
+        <div class="ms-auto d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-primary btn-sm" onclick="exportarNotasVisibles()">📄 Exportar vista actual (CSV)</button>
+          <button class="btn btn-success btn-sm" onclick="exportarNotasCompleto()">📥 Exportar todos los estudiantes (con nota 1 si no presentó)</button>
+        </div>
+      </div>
+      <div class="table-responsive bg-white p-3 border rounded shadow-sm" id="tabla-notas"></div>
+    </div>
+  </section>
+
+</div><script>
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzn9WMJUm-smSA7odpX1Q4t-6fbhIw6M80MZHZa2Au6BXRM_RPiJcKqO5lH4DJj-T3F/exec';
+  const LS_KEY = 'iet_quiz_sesion';
+
+  let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null,
+      timerInterval, quizPreguntasLista = [], notasVisiblesData = [], editandoIndex = -1;
+
+  // ─── LOADING ───────────────────────────────────────────────
+  function setLoading(show, msg = 'Cargando...') {
+    document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+    document.getElementById('loading-msg').innerText = msg;
+  }
+
+  // ─── API ───────────────────────────────────────────────────
+  async function callAPI(params, method = 'POST') {
+    setLoading(true, params.action === 'cargarPreguntas' ? 'Cargando preguntas...' :
+                     params.action === 'guardarResultado' ? 'Guardando resultado...' : 'Procesando...');
+    try {
+      let url = WEB_APP_URL, options = { method, redirect: 'follow' };
+      if (method === 'GET') {
+        url += '?' + new URLSearchParams(params).toString();
+      } else {
+        options.body = JSON.stringify(params);
+        options.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
+      }
+      const response = await fetch(url, options);
+      return await response.json();
+    } catch (e) {
+      console.error("Error en comunicación:", e);
+      return { success: false, error: "Error de conexión con Google." };
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ─── MATHJAX ───────────────────────────────────────────────
+  async function typeset(el) {
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      await MathJax.typesetPromise([el]);
+    }
+  }
+
+  function actualizarPreviewLatex() {
+    const txt = document.getElementById('adm-p-txt').value;
+    const prev = document.getElementById('preview-enunciado');
+    prev.innerHTML = txt || '<span class="text-muted" style="font-size:0.8rem">Vista previa...</span>';
+    typeset(prev);
+  }
+
+  function actualizarPreviewOpciones() { /* solo actualiza el preview del enunciado por ahora */ }
+
+  function mostrarAyudaLatex() {
+    document.getElementById('modal-latex').classList.remove('hidden');
+    // renderizar ejemplos
+    ['ex1','ex2','ex3','ex4','ex5','ex6'].forEach(id => typeset(document.getElementById(id)));
+  }
+  function ocultarAyudaLatex() { document.getElementById('modal-latex').classList.add('hidden'); }
+
+  // ─── AUTOGUARDADO EN LOCALSTORAGE ──────────────────────────
+  function guardarSesionLocal() {
+    if (!infoEstudiante) return;
+    const sesion = {
+      infoEstudiante,
+      quizNombre: document.getElementById('quiz-titulo').innerText,
+      preguntas,
+      respuestasUser,
+      indexActual,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(sesion));
+    // Mostrar badge
+    const badge = document.getElementById('badge-autoguardado');
+    badge.classList.add('visible');
+    setTimeout(() => badge.classList.remove('visible'), 1800);
+  }
+
+  function verificarSesionGuardada() {
+    const zip = document.getElementById('zipIdInput').value.trim();
+    const quiz = document.getElementById('quizSelect').value;
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    try {
+      const s = JSON.parse(raw);
+      const div = document.getElementById('alerta-recuperacion-login');
+      if (s.infoEstudiante && s.quizNombre === quiz && String(s.infoEstudiante.zipID) === zip) {
+        document.getElementById('rec-info').innerText = `${s.infoEstudiante.nombre || zip} – ${s.quizNombre} (${s.respuestasUser.filter(r=>r&&r!=='').length} resp. guardadas)`;
+        div.classList.remove('hidden');
+      } else {
+        div.classList.add('hidden');
+      }
+    } catch(_) {}
+  }
+
+  function recuperarSesion() {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    infoEstudiante = s.infoEstudiante;
+    preguntas = s.preguntas;
+    respuestasUser = s.respuestasUser;
+    indexActual = s.indexActual;
+    document.getElementById('quiz-titulo').innerText = s.quizNombre;
+    document.getElementById('alerta-recuperacion-login').classList.add('hidden');
+    showSection('quiz');
+    renderBurbujas();
+    mostrarPregunta();
+  }
+
+  function descartarSesion() {
+    localStorage.removeItem(LS_KEY);
+    document.getElementById('alerta-recuperacion-login').classList.add('hidden');
+  }
+
+  // ─── CARGA INICIAL ─────────────────────────────────────────
+  window.onload = async () => {
+    await cargarFiltrosQuizzes();
+  };
+
+  async function cargarFiltrosQuizzes() {
+    const res = await callAPI({ action: 'getQuizzes' }, 'GET');
+    const selEst = document.getElementById('quizSelect');
+    const selAdm = document.getElementById('editQuizSelect');
+    const selFil = document.getElementById('filtroQuizNotas');
+    selEst.innerHTML = '<option value="" disabled selected>Seleccione un examen disponible</option>';
+    selAdm.innerHTML = '<option value="" disabled selected>Selecciona un quiz para cargar...</option>';
+    selFil.innerHTML = '<option value="">Todos los quizzes</option>';
+    if (res.success && res.data.length > 0) {
+      res.data.forEach(q => {
+        const mk = (v,t,d) => { let o=document.createElement('option');o.value=v;o.text=t;if(d)o.dataset.tiempo=d;return o; };
+        selEst.add(mk(q.nombre, q.nombre, q.tiempo));
+        selAdm.add(mk(q.nombre, q.nombre, q.tiempo));
+        selFil.add(mk(q.nombre, q.nombre));
+      });
+    }
+  }
+
+  // ─── INICIAR QUIZ ──────────────────────────────────────────
+  async function iniciarQuiz() {
+    const zip = document.getElementById('zipIdInput').value.trim();
+    const quizName = document.getElementById('quizSelect').value;
+    if (!zip || !quizName) return alert("Por favor complete su ID y seleccione un quiz.");
+
+    // 1. Validar estudiante
+    const userRes = await callAPI({ action: 'validarEstudiante', zipID: zip }, 'POST');
+    if (!userRes.success) return alert("❌ " + (userRes.error || "ID ZipGrade no reconocido."));
+    infoEstudiante = userRes.data;
+
+    // 2. Verificar intento único
+    const intentoRes = await callAPI({ action: 'verificarIntento', zipID: zip, nombreQuiz: quizName }, 'POST');
+    if (!intentoRes.success) return alert("❌ Error al verificar intentos: " + (intentoRes.error || ""));
+    if (intentoRes.yaPresento) return alert("⚠️ Ya presentaste este quiz anteriormente. Solo se permite un intento.");
+
+    // 3. Registrar intento (bloqueo inmediato)
+    const regRes = await callAPI({ action: 'registrarIntento', zipID: zip, nombreQuiz: quizName, nombre: infoEstudiante.nombre || zip }, 'POST');
+    if (!regRes.success) return alert("❌ No se pudo registrar el intento: " + (regRes.error || ""));
+
+    // 4. Cargar preguntas
+    const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
+    if (!qRes.success) return alert("❌ " + (qRes.error || "No se pudieron cargar las preguntas."));
+
+    preguntas = qRes.data;
+    indexActual = 0;
+    respuestasUser = new Array(preguntas.length).fill('');
+    document.getElementById('quiz-titulo').innerText = quizName;
+    descartarSesion(); // limpiar sesión previa si la había
+    showSection('quiz');
+    renderBurbujas();
+    mostrarPregunta();
+  }
+
+  // ─── PAGINACIÓN: RENDERIZAR BURBUJAS ───────────────────────
+  function renderBurbujas() {
+    const cont = document.getElementById('burbujas-nav');
+    cont.innerHTML = '';
+    preguntas.forEach((_, i) => {
+      const b = document.createElement('div');
+      b.className = 'burbuja' + (i === indexActual ? ' actual' : '') + (respuestasUser[i] ? ' respondida' : '');
+      b.innerText = i + 1;
+      b.onclick = () => { guardarRespuestaActual(); irPregunta(i); };
+      cont.appendChild(b);
+    });
+  }
+
+  function actualizarBurbujas() {
+    const burbujas = document.querySelectorAll('.burbuja');
+    burbujas.forEach((b, i) => {
+      b.className = 'burbuja' + (i === indexActual ? ' actual' : '') + (respuestasUser[i] ? ' respondida' : '');
+    });
+  }
+
+  // ─── MOSTRAR PREGUNTA ──────────────────────────────────────
+  function mostrarPregunta() {
+    clearInterval(timerInterval);
+    if (indexActual >= preguntas.length) return; // no auto-finalizar
+
+    const p = preguntas[indexActual];
+    const total = preguntas.length;
+    const resp = respuestasUser[indexActual];
+
+    // Barra y textos de progreso
+    const respondidas = respuestasUser.filter(r => r && r !== '').length;
+    document.getElementById('barra-fill').style.width = ((respondidas / total) * 100) + '%';
+    document.getElementById('progreso-texto').innerText = `Pregunta ${indexActual + 1} de ${total}`;
+    document.getElementById('respondidas-texto').innerText = `${respondidas} respondida${respondidas !== 1 ? 's' : ''}`;
+
+    // HTML de la pregunta
+    let html = `<h5 class="mb-3">${p.enunciado} <span class="badge bg-secondary ms-2">${p.puntos} pt${p.puntos !== 1 ? 's' : ''}</span></h5>`;
+    if (p.imagen) html += `<img src="${p.imagen}" class="pregunta-img" onerror="this.style.display='none'">`;
+    html += `<div class="list-group mt-3">`;
+    ['A','B','C','D'].forEach((l, i) => {
+      const checked = resp === l ? 'checked' : '';
+      html += `<label class="list-group-item list-group-item-action" style="cursor:pointer;">
+        <input class="form-check-input me-3" type="radio" name="resp" value="${l}" ${checked} onchange="onRespuestaChange(this)">
+        <b>${l}.</b> ${p.opciones[i] || ''}
+      </label>`;
+    });
+    html += `</div>`;
+
+    const cont = document.getElementById('pregunta-container');
+    cont.innerHTML = html;
+
+    // Renderizar MathJax
+    typeset(cont);
+
+    // Controles de navegación
+    document.getElementById('btn-anterior').disabled = indexActual === 0;
+    document.getElementById('btn-siguiente').style.display = indexActual < total - 1 ? '' : 'none';
+    document.getElementById('btn-finalizar').style.display = indexActual === total - 1 ? '' : 'none';
+
+    actualizarBurbujas();
+    iniciarCronometro();
+  }
+
+  function onRespuestaChange(radio) {
+    respuestasUser[indexActual] = radio.value;
+    guardarSesionLocal();
+    actualizarBurbujas();
+    // actualizar conteo
+    const resp = respuestasUser.filter(r => r && r !== '').length;
+    document.getElementById('respondidas-texto').innerText = `${resp} respondida${resp !== 1 ? 's' : ''}`;
+    document.getElementById('barra-fill').style.width = ((resp / preguntas.length) * 100) + '%';
+  }
+
+  function guardarRespuestaActual() {
+    const sel = document.querySelector('input[name="resp"]:checked');
+    if (sel) respuestasUser[indexActual] = sel.value;
+  }
+
+  function irPregunta(idx) {
+    if (idx < 0 || idx >= preguntas.length) return;
+    guardarRespuestaActual();
+    indexActual = idx;
+    mostrarPregunta();
+  }
+
+  // ─── CRONÓMETRO ────────────────────────────────────────────
+  function iniciarCronometro() {
+    clearInterval(timerInterval);
+    const opt = document.getElementById('quizSelect').selectedOptions[0];
+    if (!opt || !opt.dataset.tiempo) return;
+    let tiempo = parseInt(opt.dataset.tiempo);
+    const reloj = document.getElementById('reloj');
+    timerInterval = setInterval(() => {
+      let m = Math.floor(tiempo / 60), s = tiempo % 60;
+      reloj.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+      reloj.classList.toggle('urgente', tiempo <= 10);
+      if (--tiempo < 0) {
+        clearInterval(timerInterval);
+        // Pasar a la siguiente automáticamente
+        guardarRespuestaActual();
+        if (indexActual < preguntas.length - 1) {
+          indexActual++;
+          mostrarPregunta();
+        }
+        // Si era la última, se queda ahí y el estudiante envía manualmente
+      }
+    }, 1000);
+  }
+
+  // ─── CONFIRMAR Y FINALIZAR ─────────────────────────────────
+  function confirmarFinalizar() {
+    guardarRespuestaActual();
+    const sinResponder = respuestasUser.filter(r => !r || r === '').length;
+    const msg = sinResponder > 0
+      ? `Tienes ${sinResponder} pregunta${sinResponder > 1 ? 's' : ''} sin responder. ¿Deseas enviar el examen de todas formas?`
+      : '¿Deseas enviar el examen ahora?';
+    if (!confirm(msg)) return;
+    finalizarQuiz();
+  }
+
+  async function finalizarQuiz() {
+    clearInterval(timerInterval);
+    guardarRespuestaActual();
+
+    let pts = 0;
+    respuestasUser.forEach((r, i) => { if (r === preguntas[i].correcta) pts += preguntas[i].puntos; });
+
+    const res = await callAPI({
+      action: 'guardarResultado',
+      res: { ...infoEstudiante, quiz: document.getElementById('quiz-titulo').innerText, puntaje: pts }
+    }, 'POST');
+
+    if (!res.success) return alert("❌ Error al guardar resultado: " + res.error);
+
+    // Limpiar sesión guardada
+    localStorage.removeItem(LS_KEY);
+
+    // Mostrar retroalimentación
+    mostrarRetroalimentacion(pts);
+  }
+
+  // ─── RETROALIMENTACIÓN ─────────────────────────────────────
+  function mostrarRetroalimentacion(pts) {
+    const total = preguntas.reduce((s, p) => s + p.puntos, 0);
+    const pct = total > 0 ? Math.round((pts / total) * 100) : 0;
+
+    document.getElementById('fb-score').innerText = pts + ' / ' + total + ' pts';
+    document.getElementById('fb-pct').innerText = pct + '% de aciertos';
+    document.getElementById('fb-nombre-quiz').innerText = document.getElementById('quiz-titulo').innerText;
+
+    let html = '';
+    preguntas.forEach((p, i) => {
+      const resp = respuestasUser[i] || '';
+      const correcta = p.correcta;
+      const acerto = resp === correcta;
+      const sinResp = !resp || resp === '';
+
+      let clase = sinResp ? 'feedback-sin-responder' : (acerto ? 'feedback-correcto' : 'feedback-incorrecto');
+      let icono = sinResp ? '⚠️' : (acerto ? '✅' : '❌');
+
+      html += `<div class="feedback-item ${clase}">
+        <div class="d-flex gap-2 align-items-start mb-2">
+          <span style="font-size:1.2rem">${icono}</span>
+          <div style="flex:1"><strong>Pregunta ${i+1}:</strong> ${p.enunciado}</div>
+        </div>`;
+
+      if (p.imagen) html += `<img src="${p.imagen}" class="pregunta-img mb-2" onerror="this.style.display='none'">`;
+
+      // Mostrar opciones
+      html += `<div class="list-group list-group-flush mb-2">`;
+      ['A','B','C','D'].forEach((l, j) => {
+        let cls = 'list-group-item py-1 px-2';
+        if (l === correcta) cls += ' opcion-correcta';
+        else if (l === resp && !acerto) cls += ' opcion-incorrecta-sel';
+        const marca = l === correcta ? ' ✓ (correcta)' : (l === resp && !acerto ? ' ✗ (tu respuesta)' : '');
+        html += `<div class="${cls}" style="font-size:0.9rem"><b>${l}.</b> ${p.opciones[j]}${marca}</div>`;
+      });
+      html += `</div>`;
+
+      if (sinResp) html += `<small class="text-warning-emphasis">No respondiste esta pregunta.</small>`;
+      html += `</div>`;
+    });
+
+    document.getElementById('fb-detalle').innerHTML = html;
+    showSection('feedback');
+    // Renderizar fórmulas en la retroalimentación
+    typeset(document.getElementById('fb-detalle'));
+  }
+
+  // ─── NAVEGACIÓN ────────────────────────────────────────────
+  function irAlInicio() {
+    clearInterval(timerInterval);
+    document.getElementById('zipIdInput').value = '';
+    document.getElementById('alerta-recuperacion-login').classList.add('hidden');
+    preguntas = []; indexActual = 0; respuestasUser = []; quizPreguntasLista = [];
+    document.getElementById('adm-nombre').value = '';
+    document.getElementById('adm-feedback').checked = false;
+    actualizarTablaAdmin();
+    showSection('login');
+    cargarFiltrosQuizzes();
+  }
+
+  function showSection(id) {
+    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+    document.getElementById('sec-' + id).classList.remove('hidden');
+  }
+
+  function tabAdmin(t) {
+    ['nuevo','notas'].forEach(x => {
+      document.getElementById('tab-link-' + x).classList.toggle('active', x === t);
+      document.getElementById('admin-content-' + x).classList.toggle('hidden', x !== t);
+    });
+    if (t === 'notas') cargarNotas();
+  }
+
+  // ─── ADMIN: CREAR / EDITAR ─────────────────────────────────
+  async function cargarQuizParaEditar() {
+    const quizName = document.getElementById('editQuizSelect').value;
+    if (!quizName) return;
+    const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
+    if (!qRes.success) return alert("❌ " + (qRes.error || "Error al cargar las preguntas."));
+    document.getElementById('adm-nombre').value = quizName;
+    const opt = document.getElementById('editQuizSelect').selectedOptions[0];
+    document.getElementById('adm-tiempo-global').value = opt.dataset.tiempo || '';
+    document.getElementById('adm-feedback').checked = qRes.feedback === true;
+    quizPreguntasLista = qRes.data.map(p => ({
+      texto: p.enunciado, img: p.imagen,
+      a: p.opciones[0], b: p.opciones[1], c: p.opciones[2], d: p.opciones[3],
+      correcta: p.correcta, puntos: p.puntos
+    }));
+    actualizarTablaAdmin();
+    alert("✅ Quiz cargado en el editor.");
+  }
+
+  function addPreguntaALista() {
+    const texto = document.getElementById('adm-p-txt').value;
+    const correcta = document.getElementById('adm-p-corr').value;
+    if (!texto || !correcta) return alert("Debe ingresar al menos el enunciado y la respuesta correcta.");
+    const datos = {
+      texto, img: document.getElementById('adm-p-img').value,
+      a: document.getElementById('adm-p-a').value, b: document.getElementById('adm-p-b').value,
+      c: document.getElementById('adm-p-c').value, d: document.getElementById('adm-p-d').value,
+      correcta, puntos: parseFloat(document.getElementById('adm-p-puntos').value) || 1
+    };
+    if (editandoIndex >= 0) {
+      quizPreguntasLista[editandoIndex] = datos;
+      editandoIndex = -1;
+      document.querySelector('#admin-content-nuevo .bg-light h6').innerText = 'Añadir Pregunta';
+      document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Añadir a la lista temporal';
+    } else {
+      quizPreguntasLista.push(datos);
+    }
+    actualizarTablaAdmin();
+    ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('adm-p-corr').value = '';
+    document.getElementById('preview-enunciado').innerHTML = '<span class="text-muted" style="font-size:0.8rem">Vista previa...</span>';
+  }
+
+  function editarPregunta(index) {
+    const p = quizPreguntasLista[index];
+    editandoIndex = index;
+    document.getElementById('adm-p-txt').value = p.texto;
+    document.getElementById('adm-p-img').value = p.img || '';
+    document.getElementById('adm-p-a').value = p.a || '';
+    document.getElementById('adm-p-b').value = p.b || '';
+    document.getElementById('adm-p-c').value = p.c || '';
+    document.getElementById('adm-p-d').value = p.d || '';
+    document.getElementById('adm-p-corr').value = p.correcta;
+    document.getElementById('adm-p-puntos').value = p.puntos;
+    document.querySelector('#admin-content-nuevo .bg-light h6').innerText = `✏️ Editando pregunta #${index + 1}`;
+    document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Guardar cambios';
+    actualizarPreviewLatex();
+    document.getElementById('adm-p-txt').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function quitarPregunta(index) {
+    if (editandoIndex === index) {
+      editandoIndex = -1;
+      document.querySelector('#admin-content-nuevo .bg-light h6').innerText = 'Añadir Pregunta';
+      document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Añadir a la lista temporal';
+      ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('adm-p-corr').value = '';
+    }
+    quizPreguntasLista.splice(index, 1);
+    actualizarTablaAdmin();
+  }
+
+  function actualizarTablaAdmin() {
+    document.getElementById('contador-pre').innerText = quizPreguntasLista.length;
+    const body = document.getElementById('lista-pre-temp-body');
+    if (quizPreguntasLista.length === 0) {
+      body.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aún no hay preguntas</td></tr>'; return;
+    }
+    body.innerHTML = quizPreguntasLista.map((p, i) => `<tr ${editandoIndex === i ? 'class="table-warning"' : ''}>
+      <td>${i+1}</td>
+      <td class="text-truncate" style="max-width:180px;">${p.texto}</td>
+      <td>${p.correcta}</td><td>${p.puntos}</td>
+      <td><button onclick="editarPregunta(${i})" class="btn btn-sm btn-warning py-0 px-2">✏️</button></td>
+      <td><button onclick="quitarPregunta(${i})" class="btn btn-sm btn-danger py-0 px-2">✕</button></td>
+    </tr>`).join('');
+  }
+
+  async function publicarQuiz() {
+    const nombre = document.getElementById('adm-nombre').value.trim();
+    if (!nombre || quizPreguntasLista.length === 0) return alert("Faltan datos o no hay preguntas.");
+    const btn = document.getElementById('btn-publicar');
+    btn.disabled = true; btn.innerText = "⏳ Procesando...";
+    const res = await callAPI({
+      action: 'guardarNuevoQuiz',
+      datos: { nombre, tiempo: document.getElementById('adm-tiempo-global').value, feedback: document.getElementById('adm-feedback').checked, preguntas: quizPreguntasLista }
+    }, 'POST');
+    btn.disabled = false; btn.innerText = "🚀 GUARDAR / ACTUALIZAR QUIZ EN SHEETS";
+    if (res.success) { alert("✅ Quiz guardado exitosamente."); irAlInicio(); }
+    else alert("❌ Error: " + res.error);
+  }
+
+  // ─── NOTAS ─────────────────────────────────────────────────
+  async function cargarNotas() {
+    const filtro = document.getElementById('filtroQuizNotas').value;
+    const params = { action: 'obtenerNotas' };
+    if (filtro) params.nombreQuiz = filtro;
+    const res = await callAPI(params, 'GET');
+    notasVisiblesData = res.data || [];
+    if (!res.success || notasVisiblesData.length <= 1) {
+      document.getElementById('tabla-notas').innerHTML = "<p class='text-center mt-3'>No hay notas registradas.</p>"; return;
+    }
+    let html = '<table class="table table-striped table-sm mt-3"><thead><tr class="table-dark">';
+    notasVisiblesData[0].forEach(h => html += `<th>${h}</th>`);
+    html += '</tr></thead><tbody>';
+    for (let i = 1; i < notasVisiblesData.length; i++) {
+      html += '<tr>' + notasVisiblesData[i].map((c, idx) => `<td>${idx === 5 ? new Date(c).toLocaleString() : c}</td>`).join('') + '</tr>';
+    }
+    document.getElementById('tabla-notas').innerHTML = html + '</tbody></table>';
+  }
+
+  // Exportar lo que se ve actualmente en la tabla
+  function exportarNotasVisibles() {
+    if (!notasVisiblesData || notasVisiblesData.length <= 1) return alert("No hay datos para exportar.");
+    descargarCSV(notasVisiblesData, 'notas_reporte.csv');
+  }
+
+  // Exportar todos los estudiantes con nota 1 si no presentaron
+  async function exportarNotasCompleto() {
+    const filtro = document.getElementById('filtroQuizNotas').value;
+    if (!filtro) return alert("Selecciona un quiz específico para exportar el reporte completo.");
+    const res = await callAPI({ action: 'exportarNotasCompleto', nombreQuiz: filtro }, 'GET');
+    if (!res.success || !res.data || res.data.length <= 1)
+      return alert("❌ No se pudo generar el reporte: " + (res.error || "Sin datos."));
+    descargarCSV(res.data, `notas_completo_${filtro.replace(/\s+/g,'_')}.csv`);
+  }
+
+  function descargarCSV(data, filename) {
+    const csv = '\uFEFF' + data.map(fila =>
+      fila.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')
+    ).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
 </script>
 </body>
 </html>
