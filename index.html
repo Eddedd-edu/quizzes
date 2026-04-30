@@ -179,16 +179,16 @@
     <button class="btn btn-outline-secondary w-100 fw-bold shadow-sm" onclick="consultarMisResultados()">📊 Consultar mis resultados</button>
   </section>
 
-  <!-- SECCIÓN LOGIN ADMIN -->
+  <!-- SECCIÓN LOGIN ADMIN CON FIREBASE -->
   <section id="sec-admin-login" class="card p-4 mx-auto shadow-sm d-none" style="max-width:400px;">
     <h4 class="text-center mb-4 fw-bold" style="color: var(--primary-dark);">🔐 Acceso Admin</h4>
     <div class="mb-3">
-      <input type="text" id="admin-user" class="form-control form-control-lg bg-light" placeholder="Usuario">
+      <input type="email" id="admin-user" class="form-control form-control-lg bg-light" placeholder="Correo electrónico">
     </div>
     <div class="mb-4">
       <input type="password" id="admin-pass" class="form-control form-control-lg bg-light" placeholder="Contraseña">
     </div>
-    <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" onclick="validarAdmin()">Ingresar</button>
+    <button id="btn-login-admin" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" onclick="validarAdmin()">Ingresar</button>
     <button class="btn btn-light w-100 mt-2 fw-bold text-secondary" onclick="irAlInicio()">Cancelar</button>
   </section>
 
@@ -245,7 +245,10 @@
   <section id="sec-admin" class="d-none">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h3 class="fw-bold m-0" style="color: var(--primary-dark);">Gestión Académica</h3>
-      <span class="badge bg-primary px-3 py-2">Administrador</span>
+      <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-primary px-3 py-2">Administrador</span>
+        <button class="btn btn-sm btn-outline-danger fw-bold shadow-sm" onclick="cerrarSesionAdmin()">🚪 Salir</button>
+      </div>
     </div>
     
     <ul class="nav nav-pills mb-4 bg-white p-2 rounded-3 shadow-sm border">
@@ -366,7 +369,45 @@
     </div>
   </section>
 
-</div><script>
+</div>
+
+<!-- INICIALIZACIÓN DE FIREBASE (MÓDULO) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-analytics.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCzxi12G7tn2jBIg05NCVsAV45AAx6VHLo",
+    authDomain: "quizsj-b3eb4.firebaseapp.com",
+    projectId: "quizsj-b3eb4",
+    storageBucket: "quizsj-b3eb4.firebasestorage.app",
+    messagingSenderId: "914294784200",
+    appId: "1:914294784200:web:d7680b4bfdf7da7c99a5fd",
+    measurementId: "G-104JMQGWSJ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const analytics = getAnalytics(app);
+
+  // Exponer métodos de firebase al entorno global para el otro script
+  window.firebaseLogin = async (email, password) => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return { success: true, user: userCredential.user };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+  
+  window.firebaseLogout = () => {
+    signOut(auth);
+  };
+</script>
+
+<!-- LÓGICA PRINCIPAL DE LA APLICACIÓN -->
+<script>
   const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzn9WMJUm-smSA7odpX1Q4t-6fbhIw6M80MZHZa2Au6BXRM_RPiJcKqO5lH4DJj-T3F/exec';
   const LS_KEY = 'iet_quiz_sesion';
 
@@ -423,23 +464,55 @@
   }
   function ocultarAyudaLatex() { document.getElementById('modal-latex').classList.add('d-none'); }
 
-  // ─── LOGIN ADMIN ───────────────────────────────────────────
+  // ─── LOGIN ADMIN (CON FIREBASE) ────────────────────────────
   function mostrarLoginAdmin() {
     document.getElementById('admin-user').value = '';
     document.getElementById('admin-pass').value = '';
     showSection('admin-login');
   }
 
-  function validarAdmin() {
-    const u = document.getElementById('admin-user').value;
+  async function validarAdmin() {
+    const u = document.getElementById('admin-user').value.trim();
     const p = document.getElementById('admin-pass').value;
-    if (u === 'Edd' && p === 'Edd1234') {
-      showSection('admin');
-      // cargar los datos iniciales de admin
-      if (document.getElementById('filtroQuizNotas').options.length <= 1) cargarFiltrosQuizzes();
+    
+    if (!u || !p) return alert("Por favor ingresa tu correo y contraseña.");
+
+    const btn = document.getElementById('btn-login-admin');
+    const txtOriginal = btn.innerText;
+    btn.innerText = "Verificando...";
+    btn.disabled = true;
+
+    // Asegurarse que el módulo de Firebase haya cargado
+    if (!window.firebaseLogin) {
+        alert("Firebase aún se está cargando, por favor intenta en un segundo.");
+        btn.innerText = txtOriginal;
+        btn.disabled = false;
+        return;
+    }
+
+    const res = await window.firebaseLogin(u, p);
+    
+    btn.innerText = txtOriginal;
+    btn.disabled = false;
+
+    if (res.success) {
+      // Validar si es el administrador oficial
+      if (res.user.email === 'eeavendanov@gmail.com') {
+        showSection('admin');
+        if (document.getElementById('filtroQuizNotas').options.length <= 1) cargarFiltrosQuizzes();
+      } else {
+        alert("❌ Acceso denegado. Este correo no tiene permisos de administrador.");
+        if (window.firebaseLogout) window.firebaseLogout();
+      }
     } else {
       alert("❌ Credenciales incorrectas.");
+      console.error(res.error);
     }
+  }
+
+  function cerrarSesionAdmin() {
+    if (window.firebaseLogout) window.firebaseLogout();
+    irAlInicio();
   }
 
   // ─── CONSULTAR MIS RESULTADOS ──────────────────────────────
@@ -453,17 +526,15 @@
     }
     
     const headers = res.data[0];
-    // Filtramos las filas donde alguna celda coincida exactamente con el ID ingresado
     const misNotas = res.data.slice(1).filter(row => row.some(cell => String(cell).trim() === zip));
     
     if (misNotas.length === 0) {
       return alert("No se encontraron quizzes presentados para el ID: " + zip);
     }
     
-    // Obtener el nombre asumiendo que la columna 2 es el Nombre y la 1 es el ID
     let nombreEst = "Estudiante ID: " + zip;
     if (misNotas[0] && misNotas[0].length >= 3) {
-       nombreEst = misNotas[0][2] || nombreEst; // Ajustar índice según tu estructura en Sheets
+       nombreEst = misNotas[0][2] || nombreEst; 
     }
     
     document.getElementById('info-estudiante-resultados').innerHTML = `<strong>👨‍🔬 ${nombreEst}</strong>`;
