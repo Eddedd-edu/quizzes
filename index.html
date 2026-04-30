@@ -80,7 +80,7 @@
     .pregunta-img { max-width: 100%; height: 220px; object-fit: contain; border-radius: 10px; background: #fff; display: block; margin: 12px auto; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     
     /* Pantalla de Carga */
-    #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.75); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display:flex; flex-direction:column; gap:16px; justify-content:center; align-items:center; z-index:9999; }
+    #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display:flex; flex-direction:column; gap:16px; justify-content:center; align-items:center; z-index:9999; }
     
     .table-sm { font-size: 0.85rem; }
 
@@ -138,8 +138,8 @@
 <body>
 
 <div id="loading-overlay" class="d-none">
-  <div class="spinner-border" style="width: 3rem; height: 3rem; color: var(--primary);" role="status"></div>
-  <span id="loading-msg" class="fw-bold fs-5" style="color: var(--primary-dark);">Cargando...</span>
+  <div class="spinner-border" style="width: 3.5rem; height: 3.5rem; color: var(--primary);" role="status"></div>
+  <span id="loading-msg" class="fw-bold fs-5 mt-2 text-center px-3" style="color: var(--primary-dark);">Cargando...</span>
 </div>
 
 <span id="badge-autoguardado" class="badge d-none">✓ Respuesta guardada</span>
@@ -209,6 +209,10 @@
         <div id="estudiante-activo" class="text-secondary fw-semibold small"></div>
       </div>
       <div class="timer" id="reloj">00:00</div>
+    </div>
+
+    <div class="alert alert-warning py-2 mb-3 d-none fw-bold" id="alerta-salidas">
+      ⚠️ Has salido de la pestaña <span id="contador-salidas">0</span> veces.
     </div>
 
     <div class="barra-progreso-quiz mb-2">
@@ -391,7 +395,6 @@
   const auth = getAuth(app);
   const analytics = getAnalytics(app);
 
-  // Exponer métodos de firebase al entorno global para el otro script
   window.firebaseLogin = async (email, password) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -411,8 +414,13 @@
   const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzn9WMJUm-smSA7odpX1Q4t-6fbhIw6M80MZHZa2Au6BXRM_RPiJcKqO5lH4DJj-T3F/exec';
   const LS_KEY = 'iet_quiz_sesion';
 
+  // Variables globales actualizadas
   let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null,
       timerInterval, quizPreguntasLista = [], notasVisiblesData = [], editandoIndex = -1;
+  
+  // Variables Anti-Trampas
+  let salidasPantalla = 0;
+  const MAX_SALIDAS = 3;
 
   // ─── LOADING ───────────────────────────────────────────────
   function setLoading(show, msg = 'Cargando...') {
@@ -422,8 +430,10 @@
 
   // ─── API ───────────────────────────────────────────────────
   async function callAPI(params, method = 'POST') {
-    setLoading(true, params.action === 'cargarPreguntas' ? 'Cargando preguntas...' :
-                     params.action === 'guardarResultado' ? 'Guardando resultado...' : 'Procesando...');
+    if (!params.hideLoading) {
+        setLoading(true, params.action === 'cargarPreguntas' ? 'Cargando preguntas...' :
+                         params.action === 'guardarResultado' ? 'Guardando resultado...' : 'Procesando...');
+    }
     try {
       let url = WEB_APP_URL, options = { method, redirect: 'follow' };
       if (method === 'GET') {
@@ -438,7 +448,7 @@
       console.error("Error en comunicación:", e);
       return { success: false, error: "Error de conexión con Google." };
     } finally {
-      setLoading(false);
+      if (!params.hideLoading) setLoading(false);
     }
   }
 
@@ -456,13 +466,45 @@
     typeset(prev);
   }
 
-  function actualizarPreviewOpciones() { /* solo actualiza el preview del enunciado por ahora */ }
-
+  function actualizarPreviewOpciones() {}
   function mostrarAyudaLatex() {
     document.getElementById('modal-latex').classList.remove('d-none');
     ['ex1','ex2','ex3','ex4','ex5','ex6'].forEach(id => typeset(document.getElementById(id)));
   }
   function ocultarAyudaLatex() { document.getElementById('modal-latex').classList.add('d-none'); }
+
+  // ─── CONTROL DE SALIDAS DE PANTALLA (ANTI-TRAMPAS) ─────────
+  document.addEventListener("visibilitychange", () => {
+    // Solo registrar si el examen está activo y la ventana se oculta
+    const isQuizActive = !document.getElementById('sec-quiz').classList.contains('d-none') && infoEstudiante;
+    
+    if (isQuizActive) {
+      if (document.hidden) {
+        // Estudiante salió de la pestaña
+        salidasPantalla++;
+        guardarSesionLocal(); // Guardar el contador inmediatamente
+      } else {
+        // Estudiante regresó a la pestaña
+        actualizarUIAdvertencias();
+        if (salidasPantalla >= MAX_SALIDAS) {
+          alert(`🚫 Has excedido el límite de salidas permitidas de la pestaña (${MAX_SALIDAS}). El examen se enviará automáticamente.`);
+          finalizarQuiz();
+        } else {
+          alert(`⚠️ ADVERTENCIA DE INTEGRIDAD:\n\nHas salido de la pestaña del examen. Llevas ${salidasPantalla} de ${MAX_SALIDAS} salidas permitidas.\n\nAl exceder el límite, tu examen se enviará y cerrará automáticamente.`);
+        }
+      }
+    }
+  });
+
+  function actualizarUIAdvertencias() {
+    const alertBox = document.getElementById('alerta-salidas');
+    if (salidasPantalla > 0) {
+        alertBox.classList.remove('d-none');
+        document.getElementById('contador-salidas').innerText = salidasPantalla;
+    } else {
+        alertBox.classList.add('d-none');
+    }
+  }
 
   // ─── LOGIN ADMIN (CON FIREBASE) ────────────────────────────
   function mostrarLoginAdmin() {
@@ -482,7 +524,6 @@
     btn.innerText = "Verificando...";
     btn.disabled = true;
 
-    // Asegurarse que el módulo de Firebase haya cargado
     if (!window.firebaseLogin) {
         alert("Firebase aún se está cargando, por favor intenta en un segundo.");
         btn.innerText = txtOriginal;
@@ -496,7 +537,6 @@
     btn.disabled = false;
 
     if (res.success) {
-      // Validar si es el administrador oficial
       if (res.user.email === 'eeavendanov@gmail.com') {
         showSection('admin');
         if (document.getElementById('filtroQuizNotas').options.length <= 1) cargarFiltrosQuizzes();
@@ -506,7 +546,6 @@
       }
     } else {
       alert("❌ Credenciales incorrectas.");
-      console.error(res.error);
     }
   }
 
@@ -557,9 +596,10 @@
     const sesion = {
       infoEstudiante,
       quizNombre: document.getElementById('quiz-titulo').innerText,
-      preguntas,
+      preguntas, // Al estar aleatorizadas, se guarda el orden aleatorio para este estudiante
       respuestasUser,
       indexActual,
+      salidasPantalla, // Persistimos los warnings anti-trampas
       timestamp: Date.now()
     };
     localStorage.setItem(LS_KEY, JSON.stringify(sesion));
@@ -595,9 +635,11 @@
     preguntas = s.preguntas;
     respuestasUser = s.respuestasUser;
     indexActual = s.indexActual;
+    salidasPantalla = s.salidasPantalla || 0; // Recuperar salidas previas
     document.getElementById('quiz-titulo').innerText = s.quizNombre;
     document.getElementById('estudiante-activo').innerText = "👨‍🔬 Estudiante: " + (infoEstudiante.nombre || infoEstudiante.zipID);
     document.getElementById('alerta-recuperacion-login').classList.add('d-none');
+    actualizarUIAdvertencias();
     showSection('quiz');
     renderBurbujas();
     mostrarPregunta();
@@ -651,12 +693,22 @@
     const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
     if (!qRes.success) return alert("❌ " + (qRes.error || "No se pudieron cargar las preguntas."));
 
-    preguntas = qRes.data;
+    // ALEATORIEDAD: Mezclar las preguntas usando Fisher-Yates (Shuffle)
+    let pTemp = qRes.data;
+    for (let i = pTemp.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pTemp[i], pTemp[j]] = [pTemp[j], pTemp[i]];
+    }
+    
+    preguntas = pTemp;
     indexActual = 0;
+    salidasPantalla = 0; // Reiniciar contador de trampas al iniciar examen nuevo
     respuestasUser = new Array(preguntas.length).fill('');
     document.getElementById('quiz-titulo').innerText = quizName;
     document.getElementById('estudiante-activo').innerText = "👨‍🔬 Estudiante: " + (infoEstudiante.nombre || zip);
+    
     descartarSesion();
+    actualizarUIAdvertencias();
     showSection('quiz');
     renderBurbujas();
     mostrarPregunta();
@@ -845,6 +897,8 @@
     document.getElementById('zipIdInput').value = '';
     document.getElementById('alerta-recuperacion-login').classList.add('d-none');
     preguntas = []; indexActual = 0; respuestasUser = []; quizPreguntasLista = [];
+    salidasPantalla = 0; // Reiniciar contador de salidas
+    actualizarUIAdvertencias();
     document.getElementById('adm-nombre').value = '';
     document.getElementById('adm-feedback').checked = false;
     actualizarTablaAdmin();
@@ -956,18 +1010,50 @@
     </tr>`).join('');
   }
 
+  // ─── PUBLICAR QUIZ CON FEEDBACK DETALLADO ──────────────────
   async function publicarQuiz() {
     const nombre = document.getElementById('adm-nombre').value.trim();
     if (!nombre || quizPreguntasLista.length === 0) return alert("Faltan datos o no hay preguntas.");
+    
     const btn = document.getElementById('btn-publicar');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Procesando...';
+    btn.disabled = true; 
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Procesando...';
+    
+    // Configurar simulación de progreso
+    const totalP = quizPreguntasLista.length;
+    let progresoFalso = 0;
+    setLoading(true, "Preparando el examen...");
+    
+    // Intervalo que avanza el contador visual en el modal de carga
+    const progresoInterval = setInterval(() => {
+        progresoFalso++;
+        if (progresoFalso <= totalP) {
+            document.getElementById('loading-msg').innerText = `Guardando pregunta ${progresoFalso} de ${totalP}...`;
+        } else {
+            document.getElementById('loading-msg').innerText = "Organizando base de datos...";
+            clearInterval(progresoInterval);
+        }
+    }, 700); // 700ms de actualización artificial
+
+    // Petición real al servidor (con hideLoading para que nuestra pantalla personalizada no se reescriba)
     const res = await callAPI({
       action: 'guardarNuevoQuiz',
+      hideLoading: true, // parámetro personalizado que acabo de añadir arriba en callAPI
       datos: { nombre, tiempo: document.getElementById('adm-tiempo-global').value, feedback: document.getElementById('adm-feedback').checked, preguntas: quizPreguntasLista }
     }, 'POST');
-    btn.disabled = false; btn.innerText = "🚀 GUARDAR QUIZ EN SHEETS";
-    if (res.success) { alert("✅ Quiz guardado exitosamente."); irAlInicio(); }
-    else alert("❌ Error: " + res.error);
+    
+    clearInterval(progresoInterval);
+    setLoading(false);
+
+    btn.disabled = false; 
+    btn.innerText = "🚀 GUARDAR QUIZ EN SHEETS";
+    
+    if (res.success) { 
+        alert("✅ Quiz guardado exitosamente."); 
+        irAlInicio(); 
+    } else {
+        alert("❌ Error: " + res.error);
+    }
   }
 
   // ─── NOTAS ─────────────────────────────────────────────────
