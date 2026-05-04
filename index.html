@@ -1171,14 +1171,26 @@
       html += `<div class="list-group list-group-flush mb-2 rounded border overflow-hidden bg-white">`;
       ['A','B','C','D'].forEach((l, j) => {
         let cls = 'list-group-item py-2 px-3 m-0 border-0 border-bottom rounded-0';
-        if (l === correcta) cls += ' opcion-correcta';
-        else if (l === resp && !acerto) cls += ' opcion-incorrecta-sel';
-        const marca = l === correcta ? ' ✓ (correcta)' : (l === resp && !acerto ? ' ✗ (tu respuesta)' : '');
-        html += `<div class="${cls}" style="font-size:0.95rem"><b>${l}.</b> ${p.opciones[j]} <strong>${marca}</strong></div>`;
+        let marca = '';
+        
+        // SOLO evaluamos y marcamos la opción que el estudiante seleccionó
+        if (l === resp) {
+          if (acerto) {
+            cls += ' opcion-correcta';
+            marca = ' ✓ (¡Correcto!)';
+          } else {
+            cls += ' opcion-incorrecta-sel';
+            marca = ' ✗ (Tu respuesta)';
+          }
+        }
+        
+        html += `<div class="${cls}" style="font-size:0.95rem"><b>${l}.</b> ${p.opciones[j]} <strong class="ms-1 text-secondary">${marca}</strong></div>`;
       });
       html += `</div>`;
 
       if (sinResp) html += `<small class="text-warning-emphasis fw-bold d-block mt-2">No respondiste esta pregunta.</small>`;
+      else if (!acerto) html += `<small class="text-danger fw-bold d-block mt-2">Respuesta incorrecta. ¡Debes repasar este concepto!</small>`;
+      
       html += `</div>`;
     });
 
