@@ -257,12 +257,18 @@
   </section>
 
   <section id="sec-quiz" class="d-none">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 bg-white p-3 rounded-3 shadow-sm border-start border-5 border-info">
-      <div>
-        <h5 id="quiz-titulo" class="text-primary fw-bold mb-1"></h5>
-        <div id="estudiante-activo" class="text-secondary fw-semibold small"></div>
+    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2 bg-white p-3 rounded-3 shadow-sm border-start border-5 border-info">
+      <div style="flex:1; min-width:0;">
+        <h5 id="quiz-titulo" class="text-primary fw-bold mb-1 text-truncate"></h5>
+        <!-- Tarjeta de identidad del estudiante -->
+        <div id="estudiante-activo" class="d-flex flex-wrap gap-2 align-items-center mt-1">
+          <!-- Contenido dinámico: nombre, grado, ícono -->
+        </div>
       </div>
-      <div class="timer" id="reloj">00:00</div>
+      <div class="text-end flex-shrink-0">
+        <div class="timer" id="reloj">00:00</div>
+        <div id="quiz-disponibilidad" class="mt-1" style="font-size:0.72rem; color:#6c757d;"></div>
+      </div>
     </div>
 
     <div class="alert alert-warning py-2 mb-3 d-none fw-bold" id="alerta-salidas">
@@ -330,14 +336,43 @@
             <input type="text" id="adm-nombre" class="form-control form-control-lg bg-light" placeholder="Ej: Periodo 1 - Grado 10">
           </div>
           <div class="col-md-4">
-            <label class="small fw-bold text-uppercase text-secondary mb-2">Tiempo/preg (seg)</label>
-            <input type="number" id="adm-tiempo-global" class="form-control form-control-lg bg-light" placeholder="Ej: 60">
+            <label class="small fw-bold text-uppercase text-secondary mb-2">Tiempo total del quiz (seg)</label>
+            <input type="number" id="adm-tiempo-global" class="form-control form-control-lg bg-light" placeholder="Ej: 1800 (30 min)">
           </div>
           <div class="col-md-3 d-flex align-items-end">
             <div class="form-check mb-3 bg-light p-2 rounded w-100 border">
-              <!-- ─── FIX #2: feedback SIN checked por defecto ─── -->
               <input class="form-check-input ms-1" type="checkbox" id="adm-feedback">
               <label class="form-check-label small fw-bold text-uppercase ms-2 mt-1" for="adm-feedback">Feedback final</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── DISPONIBILIDAD DEL QUIZ ───────────────────────── -->
+        <div class="p-3 border rounded-3 mb-4 bg-light" style="border-color:#cce5ff !important;">
+          <h6 class="fw-bold text-primary mb-3">🗓️ Disponibilidad del Quiz</h6>
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="small fw-bold text-secondary mb-1 text-uppercase">Estado</label>
+              <select id="adm-estado" class="form-select shadow-sm border-0 fw-semibold" onchange="toggleFechasCierre()">
+                <option value="abierto">🟢 Abierto (siempre disponible)</option>
+                <option value="cerrado">🔴 Cerrado (no disponible)</option>
+                <option value="programado">📅 Programado (por fechas)</option>
+              </select>
+            </div>
+            <div class="col-md-3" id="col-fecha-apertura" style="display:none;">
+              <label class="small fw-bold text-secondary mb-1 text-uppercase">Fecha/hora apertura</label>
+              <input type="datetime-local" id="adm-fecha-apertura" class="form-control shadow-sm border-0">
+              <small class="text-muted">Desde cuándo estará disponible</small>
+            </div>
+            <div class="col-md-3" id="col-fecha-cierre" style="display:none;">
+              <label class="small fw-bold text-secondary mb-1 text-uppercase">Fecha/hora cierre</label>
+              <input type="datetime-local" id="adm-fecha-cierre" class="form-control shadow-sm border-0">
+              <small class="text-muted">Hasta cuándo estará disponible</small>
+            </div>
+            <div class="col-md-3 d-flex align-items-end" id="col-preview-disponibilidad">
+              <div id="preview-disponibilidad" class="w-100 p-2 rounded text-center fw-semibold" style="font-size:0.85rem; background:#f0f8fb; border:1px dashed #118ab2; min-height:38px; display:flex; align-items:center; justify-content:center;">
+                🟢 Siempre disponible
+              </div>
             </div>
           </div>
         </div>
@@ -667,6 +702,7 @@
       respuestasUser,
       indexActual,
       salidasPantalla,
+      tiempoRestante, // Persiste el tiempo global restante al cambiar de pregunta
       timestamp: Date.now()
     };
     localStorage.setItem(LS_KEY, JSON.stringify(sesion));
@@ -704,12 +740,21 @@
     indexActual = s.indexActual;
     salidasPantalla = s.salidasPantalla || 0;
     document.getElementById('quiz-titulo').innerText = s.quizNombre;
-    document.getElementById('estudiante-activo').innerText = "👨‍🔬 Estudiante: " + (infoEstudiante.nombre || infoEstudiante.zipID);
+    const nombreR = infoEstudiante.nombre || infoEstudiante.zipID;
+    const gradoR  = infoEstudiante.grado  || infoEstudiante.curso || '';
+    let badgeR = `<span class="badge rounded-pill px-3 py-2" style="background:var(--primary-dark); font-size:0.8rem;">👨‍🎓 ${nombreR}</span>`;
+    if (gradoR) badgeR += `<span class="badge rounded-pill px-3 py-2" style="background:#2c5364; font-size:0.8rem;">📚 ${gradoR}</span>`;
+    badgeR += `<span class="badge rounded-pill px-3 py-2 bg-secondary" style="font-size:0.8rem;">🆔 ${infoEstudiante.zipID || ''}</span>`;
+    document.getElementById('estudiante-activo').innerHTML = badgeR;
     document.getElementById('alerta-recuperacion-login').classList.add('d-none');
     actualizarUIAdvertencias();
     showSection('quiz');
     renderBurbujas();
     mostrarPregunta();
+    // Reanudar el cronómetro global con el tiempo que quedaba al guardar
+    if (s.tiempoRestante > 0) {
+      reanudarCronometro(s.tiempoRestante);
+    }
   }
 
   function descartarSesion() {
@@ -858,7 +903,9 @@
   }
 
   function mostrarPregunta() {
-    clearInterval(timerInterval);
+    // ELIMINADA LA SIGUIENTE LÍNEA PARA EVITAR QUE SE DETENGA EL RELOJ
+    // clearInterval(timerInterval); 
+
     if (indexActual >= preguntas.length) return;
 
     const p = preguntas[indexActual];
@@ -894,7 +941,8 @@
     document.getElementById('btn-finalizar').style.display = indexActual === total - 1 ? '' : 'none';
 
     actualizarBurbujas();
-    iniciarCronometro();
+    // El cronómetro es global: NO se reinicia al cambiar de pregunta.
+    // Se inicia una sola vez en iniciarQuiz() / recuperarSesion().
   }
 
   function onRespuestaChange(radio) {
@@ -918,26 +966,38 @@
     mostrarPregunta();
   }
 
-  // ─── CRONÓMETRO ────────────────────────────────────────────
-  function iniciarCronometro() {
+  // ─── CRONÓMETRO GLOBAL DEL QUIZ ────────────────────────────
+  // Se inicia UNA SOLA VEZ al comenzar el quiz y cuenta el tiempo
+  // total disponible. Cambiar de pregunta NO lo reinicia.
+  // tiempoRestante persiste entre preguntas y se guarda en sesión local.
+  let tiempoRestante = 0;
+
+  function iniciarCronometroGlobal(segundos) {
     clearInterval(timerInterval);
-    const opt = document.getElementById('quizSelect').selectedOptions[0];
-    if (!opt || !opt.dataset.tiempo) return;
-    let tiempo = parseInt(opt.dataset.tiempo);
+    tiempoRestante = segundos;
+    _tickCronometro();
+  }
+
+  function _tickCronometro() {
     const reloj = document.getElementById('reloj');
-    timerInterval = setInterval(() => {
-      let m = Math.floor(tiempo / 60), s = tiempo % 60;
-      reloj.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-      reloj.classList.toggle('urgente', tiempo <= 10);
-      if (--tiempo < 0) {
-        clearInterval(timerInterval);
-        guardarRespuestaActual();
-        if (indexActual < preguntas.length - 1) {
-          indexActual++;
-          mostrarPregunta();
-        }
-      }
-    }, 1000);
+    const m = Math.floor(tiempoRestante / 60);
+    const s = tiempoRestante % 60;
+    reloj.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+    reloj.classList.toggle('urgente', tiempoRestante <= 30);
+    if (tiempoRestante <= 0) {
+      clearInterval(timerInterval);
+      guardarRespuestaActual();
+      alert('⏰ Se agotó el tiempo. El examen se enviará automáticamente.');
+      finalizarQuiz();
+      return;
+    }
+    tiempoRestante--;
+    timerInterval = setTimeout(_tickCronometro, 1000);
+  }
+
+  function reanudarCronometro(segundosRestantes) {
+    // Usado al recuperar sesión guardada para continuar desde donde quedó
+    iniciarCronometroGlobal(segundosRestantes);
   }
 
   // ─── CONFIRMAR Y FINALIZAR ─────────────────────────────────
@@ -953,6 +1013,8 @@
 
   async function finalizarQuiz() {
     clearInterval(timerInterval);
+    clearTimeout(timerInterval);
+    tiempoRestante = 0;
     guardarRespuestaActual();
 
     let pts = 0;
@@ -1046,6 +1108,8 @@
   // ─── NAVEGACIÓN ────────────────────────────────────────────
   function irAlInicio() {
     clearInterval(timerInterval);
+    clearTimeout(timerInterval); // El nuevo cronómetro usa setTimeout encadenado
+    tiempoRestante = 0;
     document.getElementById('zipIdInput').value = '';
     document.getElementById('alerta-recuperacion-login').classList.add('d-none');
     preguntas = []; indexActual = 0; respuestasUser = []; quizPreguntasLista = [];
@@ -1053,8 +1117,11 @@
     window._quizFeedback = undefined; // Limpiar metadata de feedback
     actualizarUIAdvertencias();
     document.getElementById('adm-nombre').value = '';
-    // ─── FIX #2: Asegurar que el checkbox queda desmarcado al volver al inicio ───
     document.getElementById('adm-feedback').checked = false;
+    document.getElementById('adm-estado').value = 'abierto';
+    document.getElementById('adm-fecha-apertura').value = '';
+    document.getElementById('adm-fecha-cierre').value = '';
+    toggleFechasCierre();
     actualizarTablaAdmin();
     showSection('login');
     cargarFiltrosQuizzes();
@@ -1097,6 +1164,14 @@
       a: p.opciones[0], b: p.opciones[1], c: p.opciones[2], d: p.opciones[3],
       correcta: p.correcta, puntos: p.puntos
     }));
+
+    // Cargar campos de disponibilidad
+    const estado = qRes.estado || 'abierto';
+    document.getElementById('adm-estado').value = estado;
+    document.getElementById('adm-fecha-apertura').value = qRes.fechaApertura ? _isoLocal(qRes.fechaApertura) : '';
+    document.getElementById('adm-fecha-cierre').value  = qRes.fechaCierre  ? _isoLocal(qRes.fechaCierre)  : '';
+    toggleFechasCierre();
+
     actualizarTablaAdmin();
     alert("✅ Quiz cargado en el editor.");
   }
@@ -1152,18 +1227,43 @@
       shuffleArray(pTemp);
       pTemp = pTemp.map(aleatorizarOpciones);
 
+      // Validar disponibilidad del quiz antes de continuar
+      const dispErr = _verificarDisponibilidad(qRes);
+      if (dispErr) return alert(dispErr);
+
       preguntas = pTemp;
       indexActual = 0;
       salidasPantalla = 0;
       respuestasUser = new Array(preguntas.length).fill('');
       document.getElementById('quiz-titulo').innerText = quizName;
-      document.getElementById('estudiante-activo').innerText = "👨‍🔬 Estudiante: " + (infoEstudiante.nombre || zip);
-      
+
+      // Encabezado enriquecido: nombre + grado del estudiante
+      const nombreEst = infoEstudiante.nombre || zip;
+      const gradoEst  = infoEstudiante.grado  || infoEstudiante.curso || '';
+      let badgeHtml = `<span class="badge rounded-pill px-3 py-2" style="background:var(--primary-dark); font-size:0.8rem;">👨‍🎓 ${nombreEst}</span>`;
+      if (gradoEst) badgeHtml += `<span class="badge rounded-pill px-3 py-2" style="background:#2c5364; font-size:0.8rem;">📚 ${gradoEst}</span>`;
+      badgeHtml += `<span class="badge rounded-pill px-3 py-2 bg-secondary" style="font-size:0.8rem;">🆔 ${zip}</span>`;
+      document.getElementById('estudiante-activo').innerHTML = badgeHtml;
+
+      // Mostrar info de cierre si el quiz tiene fecha límite
+      _mostrarBadgeDisponibilidad(qRes);
+
       descartarSesion();
       actualizarUIAdvertencias();
       showSection('quiz');
       renderBurbujas();
       mostrarPregunta();
+
+      // ─── CRONÓMETRO GLOBAL: arrancar una sola vez al iniciar el quiz ───
+      const opt = document.getElementById('quizSelect').selectedOptions[0];
+      const segundosTotales = opt && opt.dataset.tiempo ? parseInt(opt.dataset.tiempo) : 0;
+      if (segundosTotales > 0) {
+        iniciarCronometroGlobal(segundosTotales);
+      } else {
+        // Sin tiempo configurado: mostrar --:-- en el reloj
+        document.getElementById('reloj').innerText = '--:--';
+        document.getElementById('reloj').classList.remove('urgente');
+      }
     };
     window.iniciarQuiz = _ini;
   })();
@@ -1270,8 +1370,10 @@
       datos: {
         nombre,
         tiempo: document.getElementById('adm-tiempo-global').value,
-        // ─── FIX #2: Enviar explícitamente el valor booleano del feedback ───
         feedback: document.getElementById('adm-feedback').checked,
+        estado: document.getElementById('adm-estado').value,
+        fechaApertura: document.getElementById('adm-fecha-apertura').value || '',
+        fechaCierre:   document.getElementById('adm-fecha-cierre').value   || '',
         preguntas: quizPreguntasLista
       }
     }, 'POST');
@@ -1334,6 +1436,94 @@
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   }
+  // ═══════════════════════════════════════════════════════════
+  // DISPONIBILIDAD DEL QUIZ
+  // ═══════════════════════════════════════════════════════════
+
+  /** Muestra/oculta los campos de fecha según el estado seleccionado */
+  function toggleFechasCierre() {
+    const estado = document.getElementById('adm-estado').value;
+    const showFechas = estado === 'programado';
+    document.getElementById('col-fecha-apertura').style.display = showFechas ? '' : 'none';
+    document.getElementById('col-fecha-cierre').style.display   = showFechas ? '' : 'none';
+    // Actualizar preview
+    const prev = document.getElementById('preview-disponibilidad');
+    if (estado === 'abierto') {
+      prev.innerHTML = '🟢 Siempre disponible';
+      prev.style.background = '#effaf6';
+      prev.style.borderColor = 'var(--success)';
+    } else if (estado === 'cerrado') {
+      prev.innerHTML = '🔴 No disponible';
+      prev.style.background = '#fff3f5';
+      prev.style.borderColor = 'var(--danger)';
+    } else {
+      const ap = document.getElementById('adm-fecha-apertura').value;
+      const ci = document.getElementById('adm-fecha-cierre').value;
+      let txt = '📅 ';
+      if (ap) txt += `Abre: ${new Date(ap).toLocaleString('es-CO')}`;
+      if (ap && ci) txt += ' — ';
+      if (ci) txt += `Cierra: ${new Date(ci).toLocaleString('es-CO')}`;
+      if (!ap && !ci) txt += 'Configura las fechas';
+      prev.innerHTML = txt;
+      prev.style.background = '#fffcf0';
+      prev.style.borderColor = 'var(--warning)';
+    }
+  }
+
+  /** Convierte una fecha ISO/string a formato datetime-local (YYYY-MM-DDTHH:mm) */
+  function _isoLocal(val) {
+    if (!val) return '';
+    try {
+      const d = new Date(val);
+      if (isNaN(d)) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch { return ''; }
+  }
+
+  /**
+   * Verifica si el quiz está disponible en este momento.
+   * Devuelve null si puede continuar, o un string con el mensaje de error.
+   */
+  function _verificarDisponibilidad(qRes) {
+    const estado = (qRes.estado || 'abierto').toLowerCase().trim();
+    if (estado === 'cerrado') {
+      return '🔴 Este quiz está cerrado. El docente no lo ha habilitado aún.';
+    }
+    if (estado === 'programado') {
+      const ahora = Date.now();
+      if (qRes.fechaApertura) {
+        const apertura = new Date(qRes.fechaApertura).getTime();
+        if (!isNaN(apertura) && ahora < apertura) {
+          return `⏳ Este quiz aún no está disponible.\n\nFecha de apertura: ${new Date(qRes.fechaApertura).toLocaleString('es-CO')}`;
+        }
+      }
+      if (qRes.fechaCierre) {
+        const cierre = new Date(qRes.fechaCierre).getTime();
+        if (!isNaN(cierre) && ahora > cierre) {
+          return `🔒 El plazo para presentar este quiz ha vencido.\n\nFecha de cierre: ${new Date(qRes.fechaCierre).toLocaleString('es-CO')}`;
+        }
+      }
+    }
+    return null; // disponible
+  }
+
+  /** Muestra un badge de cierre próximo en el encabezado del quiz */
+  function _mostrarBadgeDisponibilidad(qRes) {
+    const el = document.getElementById('quiz-disponibilidad');
+    if (!el) return;
+    const estado = (qRes.estado || 'abierto').toLowerCase().trim();
+    if (estado === 'programado' && qRes.fechaCierre) {
+      const cierre = new Date(qRes.fechaCierre);
+      if (!isNaN(cierre)) {
+        el.innerHTML = `⏰ Cierra: <strong>${cierre.toLocaleString('es-CO')}</strong>`;
+        el.style.color = '#e63946';
+      }
+    } else {
+      el.innerHTML = '';
+    }
+  }
+
 </script>
 </body>
 </html>
