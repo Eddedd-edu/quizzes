@@ -241,9 +241,18 @@
         <button class="btn btn-outline-secondary btn-sm w-100" onclick="descartarSesion()">Empezar de cero</button>
       </div>
     </div>
+    
     <div class="mb-3">
       <label class="fw-bold text-secondary mb-1">ID ZipGrade Estudiante:</label>
-      <input type="text" id="zipIdInput" class="form-control form-control-lg bg-light border-0 shadow-sm" placeholder="Ej: 1025" oninput="verificarSesionGuardada()">
+      <input type="text" id="zipIdInput" class="form-control form-control-lg bg-light border-0 shadow-sm" placeholder="Ej: 1025" oninput="filtrarPorZip()">
+    </div>
+    <div class="mb-3">
+      <label class="fw-bold text-secondary mb-1">Grado:</label>
+      <select id="gradoFiltroInicio" class="form-select form-select-lg bg-light border-0 shadow-sm" onchange="renderQuizzesInicio()">
+        <option value="Todos">Todos los grados</option>
+        <option value="10">Décimo (10°)</option>
+        <option value="11">Once (11°)</option>
+      </select>
     </div>
     <div class="mb-4">
       <label class="fw-bold text-secondary mb-1">Seleccionar Quiz:</label>
@@ -367,18 +376,26 @@
         </div>
         <hr class="mb-4 opacity-10">
         <div class="row g-4 mb-4">
-          <div class="col-md-5">
+          <div class="col-md-4">
             <label class="small fw-bold text-uppercase text-secondary mb-2">Nombre del Quiz</label>
             <input type="text" id="adm-nombre" class="form-control form-control-lg bg-light" placeholder="Ej: Periodo 1 - Grado 10">
           </div>
-          <div class="col-md-4">
-            <label class="small fw-bold text-uppercase text-secondary mb-2">Tiempo total del quiz (seg)</label>
-            <input type="number" id="adm-tiempo-global" class="form-control form-control-lg bg-light" placeholder="Ej: 1800 (30 min)">
+          <div class="col-md-3">
+            <label class="small fw-bold text-uppercase text-secondary mb-2">Tiempo (seg)</label>
+            <input type="number" id="adm-tiempo-global" class="form-control form-control-lg bg-light" placeholder="Ej: 1800">
           </div>
-          <div class="col-md-3 d-flex align-items-end">
-            <div class="form-check mb-3 bg-light p-2 rounded w-100 border">
+          <div class="col-md-3">
+            <label class="small fw-bold text-uppercase text-secondary mb-2">Grado Dirigido</label>
+            <select id="adm-grado" class="form-select form-select-lg bg-light">
+              <option value="Todos">Todos</option>
+              <option value="10">Décimo (10°)</option>
+              <option value="11">Once (11°)</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <div class="form-check mb-3 bg-light p-2 rounded w-100 border text-center">
               <input class="form-check-input ms-1" type="checkbox" id="adm-feedback">
-              <label class="form-check-label small fw-bold text-uppercase ms-2 mt-1" for="adm-feedback">Feedback final</label>
+              <label class="form-check-label small fw-bold text-uppercase ms-2 mt-1" for="adm-feedback">Feedback</label>
             </div>
           </div>
         </div>
@@ -494,10 +511,18 @@
     <div id="admin-content-notas" class="d-none">
       <div class="card p-4">
         <div class="mb-4 d-flex gap-3 align-items-center flex-wrap bg-light p-3 rounded-3 border">
-          <label class="fw-bold mb-0 text-secondary">Filtrar por Quiz:</label>
-          <select id="filtroQuizNotas" class="form-select w-auto flex-grow-1 border-0 shadow-sm" onchange="cargarNotas()">
+          <label class="fw-bold mb-0 text-secondary">Quiz:</label>
+          <select id="filtroQuizNotas" class="form-select border-0 shadow-sm" style="max-width: 200px;" onchange="renderTablaNotas()">
             <option value="">Todos los quizzes</option>
           </select>
+
+          <label class="fw-bold mb-0 text-secondary ms-2">Grado:</label>
+          <select id="filtroGradoNotas" class="form-select border-0 shadow-sm" style="max-width: 150px;" onchange="renderTablaNotas()">
+            <option value="">Todos</option>
+            <option value="10">Décimo (10°)</option>
+            <option value="11">Once (11°)</option>
+          </select>
+
           <div class="ms-auto d-flex gap-2 flex-wrap w-100 w-md-auto mt-2 mt-md-0">
             <button class="btn btn-outline-primary btn-sm fw-semibold flex-grow-1" onclick="exportarNotasVisibles()">📄 Exportar vista (CSV)</button>
             <button class="btn btn-success btn-sm fw-semibold flex-grow-1 text-dark" style="background-color: var(--success); border-color: var(--success);" onclick="exportarNotasCompleto()">📥 Exportar completo</button>
@@ -551,6 +576,8 @@
 
   let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null,
       timerInterval, quizPreguntasLista = [], notasVisiblesData = [], editandoIndex = -1;
+  let allQuizzes = []; // Almacena todos los quizzes disponibles
+  let todasLasNotas = []; // Almacena crudo todas las notas para filtrar en frontend
   
   // Variables Anti-Trampas y Flujo
   let salidasPantalla = 0;
@@ -836,27 +863,70 @@
     document.getElementById('alerta-recuperacion-login').classList.add('d-none');
   }
 
-  // ─── CARGA INICIAL ─────────────────────────────────────────
+  // ─── CARGA INICIAL Y FILTROS POR GRADO ─────────────────────
   window.onload = async () => {
     await cargarFiltrosQuizzes();
   };
 
   async function cargarFiltrosQuizzes() {
     const res = await callAPI({ action: 'getQuizzes' }, 'GET');
-    const selEst = document.getElementById('quizSelect');
+    if (res.success && res.data) {
+        allQuizzes = res.data;
+    } else {
+        allQuizzes = [];
+    }
+    
     const selAdm = document.getElementById('editQuizSelect');
     const selFil = document.getElementById('filtroQuizNotas');
-    selEst.innerHTML = '<option value="" disabled selected>Seleccione un examen disponible</option>';
+    
     selAdm.innerHTML = '<option value="" disabled selected>Selecciona un quiz para cargar...</option>';
     selFil.innerHTML = '<option value="">Todos los quizzes</option>';
-    if (res.success && res.data.length > 0) {
-      res.data.forEach(q => {
+    
+    if (allQuizzes.length > 0) {
+      allQuizzes.forEach(q => {
         const mk = (v,t,d) => { let o=document.createElement('option');o.value=v;o.text=t;if(d)o.dataset.tiempo=d;return o; };
-        selEst.add(mk(q.nombre, q.nombre, q.tiempo));
         selAdm.add(mk(q.nombre, q.nombre, q.tiempo));
         selFil.add(mk(q.nombre, q.nombre));
       });
     }
+    renderQuizzesInicio();
+  }
+
+  // Filtrado de quizzes en la pantalla de inicio basado en el grado seleccionado (y el zip ID)
+  function filtrarPorZip() {
+    const zip = document.getElementById('zipIdInput').value.trim();
+    const selGrado = document.getElementById('gradoFiltroInicio');
+    
+    if (zip.startsWith('10')) {
+      selGrado.value = '10';
+    } else if (zip.startsWith('11')) {
+      selGrado.value = '11';
+    }
+    
+    renderQuizzesInicio();
+    verificarSesionGuardada();
+  }
+
+  function renderQuizzesInicio() {
+    const selEst = document.getElementById('quizSelect');
+    const gradoSel = document.getElementById('gradoFiltroInicio').value;
+
+    selEst.innerHTML = '<option value="" disabled selected>Seleccione un examen disponible</option>';
+
+    const filtrados = allQuizzes.filter(q => {
+      if (gradoSel === 'Todos') return true;
+      // Compatibilidad hacia atrás: si el quiz no tiene grado, se asume para todos.
+      if (!q.grado || q.grado === 'Todos' || q.grado === '') return true;
+      return String(q.grado) === String(gradoSel);
+    });
+
+    filtrados.forEach(q => {
+      let o = document.createElement('option');
+      o.value = q.nombre;
+      o.text = q.nombre;
+      if (q.tiempo) o.dataset.tiempo = q.tiempo;
+      selEst.add(o);
+    });
   }
 
   // ─── ALEATORIZAR PREGUNTAS Y OPCIONES ──────────────────────
@@ -1211,8 +1281,11 @@
     modoRevision = false;
     window._quizFeedback = undefined; 
     actualizarUIAdvertencias();
+    
     document.getElementById('adm-nombre').value = '';
     document.getElementById('adm-feedback').checked = false;
+    document.getElementById('adm-grado').value = 'Todos';
+    document.getElementById('gradoFiltroInicio').value = 'Todos';
     document.getElementById('adm-estado').value = 'abierto';
     document.getElementById('adm-fecha-apertura').value = '';
     document.getElementById('adm-fecha-cierre').value = '';
@@ -1248,6 +1321,7 @@
     document.getElementById('adm-nombre').value = quizName;
     const opt = document.getElementById('editQuizSelect').selectedOptions[0];
     document.getElementById('adm-tiempo-global').value = opt.dataset.tiempo || '';
+    document.getElementById('adm-grado').value = qRes.grado || 'Todos';
     
     const fbRaw = qRes.feedback;
     const fbActivo = (typeof fbRaw === 'boolean') ? fbRaw : String(fbRaw).trim().toLowerCase() === 'true';
@@ -1442,10 +1516,11 @@
       datos: {
         nombre,
         tiempo: document.getElementById('adm-tiempo-global').value,
+        grado: document.getElementById('adm-grado').value, // <-- Aquí enviamos el grado asignado
         feedback: document.getElementById('adm-feedback').checked,
         estado: document.getElementById('adm-estado').value,
         fechaApertura: document.getElementById('adm-fecha-apertura').value || '',
-        fechaCierre:   document.getElementById('adm-fecha-cierre').value   || '',
+        fechaCierre:   document.getElementById('adm-fecha-cierre').value  || '',
         preguntas: quizPreguntasLista
       }
     }, 'POST');
@@ -1464,23 +1539,70 @@
     }
   }
 
-  // ─── NOTAS ─────────────────────────────────────────────────
+  // ─── NOTAS CON FILTRADO FRONTEND ───────────────────────────
   async function cargarNotas() {
-    const filtro = document.getElementById('filtroQuizNotas').value;
-    const params = { action: 'obtenerNotas' };
-    if (filtro) params.nombreQuiz = filtro;
-    const res = await callAPI(params, 'GET');
-    notasVisiblesData = res.data || [];
-    if (!res.success || notasVisiblesData.length <= 1) {
-      document.getElementById('tabla-notas').innerHTML = "<p class='text-center mt-4 text-muted'>No hay notas registradas para mostrar.</p>"; return;
+    setLoading(true, 'Cargando registro de notas...');
+    // Llamamos siempre a todas las notas, asegurando que el filtro funcione internamente en el navegador
+    const res = await callAPI({ action: 'obtenerNotas' }, 'GET');
+    setLoading(false);
+    
+    if (res.success && res.data) {
+        todasLasNotas = res.data;
+    } else {
+        todasLasNotas = [];
     }
+    renderTablaNotas();
+  }
+
+  function renderTablaNotas() {
+    const filtroQuiz = document.getElementById('filtroQuizNotas').value;
+    const filtroGrado = document.getElementById('filtroGradoNotas').value;
+
+    if (!todasLasNotas || todasLasNotas.length <= 1) {
+        document.getElementById('tabla-notas').innerHTML = "<p class='text-center mt-4 text-muted'>No hay notas registradas para mostrar.</p>";
+        notasVisiblesData = [];
+        return;
+    }
+
+    const headers = todasLasNotas[0];
+    let rows = todasLasNotas.slice(1);
+
+    // Filtro estricto por Nombre de Quiz
+    if (filtroQuiz) {
+        rows = rows.filter(row => row.some(cell => String(cell).trim() === filtroQuiz));
+    }
+
+    // Filtro por Grado (busca el '10' u '11' dentro del inicio del ID o en las celdas de la fila)
+    if (filtroGrado) {
+        rows = rows.filter(row => {
+            return row.some(cell => {
+                const str = String(cell).trim();
+                return str.startsWith(filtroGrado) || str === filtroGrado;
+            });
+        });
+    }
+
+    notasVisiblesData = [headers, ...rows];
+
+    if (rows.length === 0) {
+        document.getElementById('tabla-notas').innerHTML = "<p class='text-center mt-4 text-muted'>No hay resultados para los filtros seleccionados.</p>";
+        return;
+    }
+
     let html = '<table class="table table-striped table-hover mt-0 mb-0 align-middle"><thead class="table-dark sticky-top"><tr>';
-    notasVisiblesData[0].forEach(h => html += `<th>${h}</th>`);
+    headers.forEach(h => html += `<th>${h}</th>`);
     html += '</tr></thead><tbody>';
-    for (let i = 1; i < notasVisiblesData.length; i++) {
-      html += '<tr>' + notasVisiblesData[i].map((c, idx) => `<td>${idx === 5 ? new Date(c).toLocaleString() : c}</td>`).join('') + '</tr>';
-    }
-    document.getElementById('tabla-notas').innerHTML = html + '</tbody></table>';
+    
+    rows.forEach(row => {
+        html += '<tr>' + row.map((c, idx) => {
+            // Formatear fechas si detecta el timestamp
+            const isDate = idx === 5 || String(c).includes('GMT') || String(c).includes('T0');
+            return `<td>${isDate && !isNaN(Date.parse(c)) ? new Date(c).toLocaleString() : c}</td>`;
+        }).join('') + '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    document.getElementById('tabla-notas').innerHTML = html;
   }
 
   function exportarNotasVisibles() {
