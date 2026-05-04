@@ -76,8 +76,62 @@
     .timer.urgente { color: var(--danger); animation: pulso 0.8s infinite; transform: scale(1.05); }
     @keyframes pulso { 0%,100%{opacity:1; transform: scale(1.05);} 50%{opacity:0.6; transform: scale(1);} }
     
-    /* Imágenes */
-    .pregunta-img { max-width: 100%; height: 220px; object-fit: contain; border-radius: 10px; background: #fff; display: block; margin: 12px auto; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    /* ─── FIX #3: Imágenes ───────────────────────────────────── */
+    /* Se amplió el max-height y se mejoró la presentación */
+    .pregunta-img {
+      max-width: 100%;
+      max-height: 280px;
+      height: auto;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #fff;
+      display: block;
+      margin: 12px auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      border: 1px solid #e9ecef;
+    }
+    /* Contenedor de imagen con estado de carga */
+    .img-wrapper {
+      position: relative;
+      text-align: center;
+      margin: 12px 0;
+    }
+    .img-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 80px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      border: 2px dashed #ced4da;
+      color: #6c757d;
+      font-size: 0.9rem;
+      gap: 8px;
+    }
+    /* Preview de imagen en admin */
+    #admin-img-preview-wrapper {
+      margin-top: 10px;
+      display: none;
+    }
+    #admin-img-preview {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+      background: #fff;
+      display: block;
+      margin: 0 auto;
+    }
+    .img-preview-error {
+      color: var(--danger);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 8px;
+      background: #fff3f5;
+      border-radius: 8px;
+      border: 1px solid var(--danger);
+    }
     
     /* Pantalla de Carga */
     #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display:flex; flex-direction:column; gap:16px; justify-content:center; align-items:center; z-index:9999; }
@@ -281,6 +335,7 @@
           </div>
           <div class="col-md-3 d-flex align-items-end">
             <div class="form-check mb-3 bg-light p-2 rounded w-100 border">
+              <!-- ─── FIX #2: feedback SIN checked por defecto ─── -->
               <input class="form-check-input ms-1" type="checkbox" id="adm-feedback">
               <label class="form-check-label small fw-bold text-uppercase ms-2 mt-1" for="adm-feedback">Feedback final</label>
             </div>
@@ -297,8 +352,18 @@
           <div class="latex-hint">💡 Usa <code>$\ce{H2SO4}$</code> para fórmulas, <code>$x^2$</code> para matemáticas. <a href="#" class="fw-semibold text-decoration-none" onclick="mostrarAyudaLatex()">Ver ejemplos</a></div>
           <div id="preview-enunciado" class="mb-4 shadow-sm bg-white"><span class="text-muted" style="font-size:0.85rem">Vista previa del enunciado aparecerá aquí...</span></div>
 
+          <!-- ─── FIX #3: Campo imagen con previsualización en admin ─── -->
           <label class="small fw-bold text-secondary mb-1">Imagen (Opcional)</label>
-          <input type="text" id="adm-p-img" class="form-control mb-3 shadow-sm border-0" placeholder="URL de Imagen de apoyo">
+          <input type="text" id="adm-p-img" class="form-control mb-1 shadow-sm border-0"
+            placeholder="URL de Imagen de apoyo (https://...)"
+            oninput="previewAdminImg()">
+          <div id="admin-img-preview-wrapper">
+            <img id="admin-img-preview" src="" alt="Vista previa imagen"
+              onload="document.getElementById('admin-img-preview-wrapper').style.display='block'; document.getElementById('admin-img-error').classList.add('d-none');"
+              onerror="document.getElementById('admin-img-error').classList.remove('d-none'); this.style.display='none';">
+            <div id="admin-img-error" class="img-preview-error d-none mt-1">⚠️ No se pudo cargar la imagen. Verifica la URL.</div>
+          </div>
+          <small class="text-muted mb-3 d-block mt-1">💡 Usa URLs directas de imagen (terminan en .jpg, .png, .gif, etc.) o servicios como Imgur, Google Drive (enlace público).</small>
           
           <label class="small fw-bold text-secondary mb-1">Opciones de respuesta</label>
           <div class="row g-3 mb-3">
@@ -414,7 +479,6 @@
   const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzn9WMJUm-smSA7odpX1Q4t-6fbhIw6M80MZHZa2Au6BXRM_RPiJcKqO5lH4DJj-T3F/exec';
   const LS_KEY = 'iet_quiz_sesion';
 
-  // Variables globales actualizadas
   let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null,
       timerInterval, quizPreguntasLista = [], notasVisiblesData = [], editandoIndex = -1;
   
@@ -467,24 +531,40 @@
   }
 
   function actualizarPreviewOpciones() {}
+
   function mostrarAyudaLatex() {
     document.getElementById('modal-latex').classList.remove('d-none');
     ['ex1','ex2','ex3','ex4','ex5','ex6'].forEach(id => typeset(document.getElementById(id)));
   }
   function ocultarAyudaLatex() { document.getElementById('modal-latex').classList.add('d-none'); }
 
+  // ─── FIX #3: Preview de imagen en panel admin ──────────────
+  function previewAdminImg() {
+    const url = document.getElementById('adm-p-img').value.trim();
+    const wrapper = document.getElementById('admin-img-preview-wrapper');
+    const img = document.getElementById('admin-img-preview');
+    const errDiv = document.getElementById('admin-img-error');
+
+    if (!url) {
+      wrapper.style.display = 'none';
+      img.style.display = 'none';
+      errDiv.classList.add('d-none');
+      return;
+    }
+    wrapper.style.display = 'block';
+    img.style.display = 'block';
+    errDiv.classList.add('d-none');
+    img.src = url;
+  }
+
   // ─── CONTROL DE SALIDAS DE PANTALLA (ANTI-TRAMPAS) ─────────
   document.addEventListener("visibilitychange", () => {
-    // Solo registrar si el examen está activo y la ventana se oculta
     const isQuizActive = !document.getElementById('sec-quiz').classList.contains('d-none') && infoEstudiante;
-    
     if (isQuizActive) {
       if (document.hidden) {
-        // Estudiante salió de la pestaña
         salidasPantalla++;
-        guardarSesionLocal(); // Guardar el contador inmediatamente
+        guardarSesionLocal();
       } else {
-        // Estudiante regresó a la pestaña
         actualizarUIAdvertencias();
         if (salidasPantalla >= MAX_SALIDAS) {
           alert(`🚫 Has excedido el límite de salidas permitidas de la pestaña (${MAX_SALIDAS}). El examen se enviará automáticamente.`);
@@ -516,26 +596,20 @@
   async function validarAdmin() {
     const u = document.getElementById('admin-user').value.trim();
     const p = document.getElementById('admin-pass').value;
-    
     if (!u || !p) return alert("Por favor ingresa tu correo y contraseña.");
-
     const btn = document.getElementById('btn-login-admin');
     const txtOriginal = btn.innerText;
     btn.innerText = "Verificando...";
     btn.disabled = true;
-
     if (!window.firebaseLogin) {
         alert("Firebase aún se está cargando, por favor intenta en un segundo.");
         btn.innerText = txtOriginal;
         btn.disabled = false;
         return;
     }
-
     const res = await window.firebaseLogin(u, p);
-    
     btn.innerText = txtOriginal;
     btn.disabled = false;
-
     if (res.success) {
       if (res.user.email === 'eeavendanov@gmail.com') {
         showSection('admin');
@@ -558,26 +632,20 @@
   async function consultarMisResultados() {
     const zip = document.getElementById('zipIdInput').value.trim();
     if (!zip) return alert("Por favor ingresa tu ID ZipGrade primero para consultar tus resultados.");
-    
     const res = await callAPI({ action: 'obtenerNotas' }, 'GET');
     if (!res.success || !res.data || res.data.length <= 1) {
       return alert("No se encontraron resultados en la base de datos.");
     }
-    
     const headers = res.data[0];
     const misNotas = res.data.slice(1).filter(row => row.some(cell => String(cell).trim() === zip));
-    
     if (misNotas.length === 0) {
       return alert("No se encontraron quizzes presentados para el ID: " + zip);
     }
-    
     let nombreEst = "Estudiante ID: " + zip;
     if (misNotas[0] && misNotas[0].length >= 3) {
        nombreEst = misNotas[0][2] || nombreEst; 
     }
-    
     document.getElementById('info-estudiante-resultados').innerHTML = `<strong>👨‍🔬 ${nombreEst}</strong>`;
-    
     let html = '<div class="table-responsive border rounded"><table class="table table-hover table-sm align-middle mb-0"><thead class="table-light"><tr>';
     headers.forEach(h => html += `<th>${h}</th>`);
     html += '</tr></thead><tbody>';
@@ -585,7 +653,6 @@
       html += '<tr>' + row.map((c, idx) => `<td>${idx === 5 ? new Date(c).toLocaleString() : c}</td>`).join('') + '</tr>';
     });
     html += '</tbody></table></div>';
-    
     document.getElementById('mis-resultados-body').innerHTML = html;
     showSection('mis-resultados');
   }
@@ -596,10 +663,10 @@
     const sesion = {
       infoEstudiante,
       quizNombre: document.getElementById('quiz-titulo').innerText,
-      preguntas, // Al estar aleatorizadas, se guarda el orden aleatorio para este estudiante
+      preguntas,
       respuestasUser,
       indexActual,
-      salidasPantalla, // Persistimos los warnings anti-trampas
+      salidasPantalla,
       timestamp: Date.now()
     };
     localStorage.setItem(LS_KEY, JSON.stringify(sesion));
@@ -635,7 +702,7 @@
     preguntas = s.preguntas;
     respuestasUser = s.respuestasUser;
     indexActual = s.indexActual;
-    salidasPantalla = s.salidasPantalla || 0; // Recuperar salidas previas
+    salidasPantalla = s.salidasPantalla || 0;
     document.getElementById('quiz-titulo').innerText = s.quizNombre;
     document.getElementById('estudiante-activo').innerText = "👨‍🔬 Estudiante: " + (infoEstudiante.nombre || infoEstudiante.zipID);
     document.getElementById('alerta-recuperacion-login').classList.add('d-none');
@@ -673,6 +740,43 @@
     }
   }
 
+  // ─── FIX #1: ALEATORIZAR PREGUNTAS Y OPCIONES ──────────────
+  /**
+   * Mezcla un array in-place usando Fisher-Yates.
+   * Devuelve un mapa de posiciones antiguas a nuevas para reubicar la respuesta correcta.
+   */
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  /**
+   * Aleatoriza las opciones de respuesta de cada pregunta,
+   * y actualiza el campo 'correcta' para que apunte a la nueva letra.
+   */
+  function aleatorizarOpciones(pregunta) {
+    const letras = ['A', 'B', 'C', 'D'];
+    // Construimos pares [letra, texto] y encontramos cuál es la correcta
+    const pares = letras.map((l, i) => ({ letra: l, texto: pregunta.opciones[i] || '' }));
+    const correctaTexto = pares.find(p => p.letra === pregunta.correcta)?.texto;
+
+    // Mezclamos los pares
+    shuffleArray(pares);
+
+    // Reconstruimos opciones y encontramos la nueva letra de la correcta
+    const nuevasOpciones = pares.map(p => p.texto);
+    const nuevaCorrecta = letras[pares.findIndex(p => p.texto === correctaTexto)];
+
+    return {
+      ...pregunta,
+      opciones: nuevasOpciones,
+      correcta: nuevaCorrecta
+    };
+  }
+
   // ─── INICIAR QUIZ ──────────────────────────────────────────
   async function iniciarQuiz() {
     const zip = document.getElementById('zipIdInput').value.trim();
@@ -693,16 +797,14 @@
     const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
     if (!qRes.success) return alert("❌ " + (qRes.error || "No se pudieron cargar las preguntas."));
 
-    // ALEATORIEDAD: Mezclar las preguntas usando Fisher-Yates (Shuffle)
+    // ─── FIX #1: Aleatorizar orden de preguntas Y opciones de cada una ───
     let pTemp = qRes.data;
-    for (let i = pTemp.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pTemp[i], pTemp[j]] = [pTemp[j], pTemp[i]];
-    }
-    
+    shuffleArray(pTemp);                          // Mezcla el orden de las preguntas
+    pTemp = pTemp.map(aleatorizarOpciones);       // Mezcla opciones A/B/C/D dentro de cada pregunta
+
     preguntas = pTemp;
     indexActual = 0;
-    salidasPantalla = 0; // Reiniciar contador de trampas al iniciar examen nuevo
+    salidasPantalla = 0;
     respuestasUser = new Array(preguntas.length).fill('');
     document.getElementById('quiz-titulo').innerText = quizName;
     document.getElementById('estudiante-activo').innerText = "👨‍🔬 Estudiante: " + (infoEstudiante.nombre || zip);
@@ -734,7 +836,27 @@
     });
   }
 
-  // ─── MOSTRAR PREGUNTA ──────────────────────────────────────
+  // ─── FIX #3: MOSTRAR PREGUNTA CON IMAGEN ROBUSTA ──────────
+  function construirHtmlImagen(url) {
+    if (!url || !url.trim()) return '';
+    // Normalizar URL: asegurar protocolo https cuando se omite
+    let src = url.trim();
+    if (src.startsWith('//')) src = 'https:' + src;
+    // Wrapper con estado de carga y manejo de error
+    return `
+      <div class="img-wrapper">
+        <img src="${src}"
+          class="pregunta-img"
+          alt="Imagen de referencia"
+          loading="lazy"
+          onload="this.style.display='block'; this.nextElementSibling && (this.nextElementSibling.style.display='none');"
+          onerror="this.style.display='none'; this.nextElementSibling && (this.nextElementSibling.style.display='flex');">
+        <div class="img-placeholder" style="display:none;">
+          🖼️ No se pudo cargar la imagen de referencia
+        </div>
+      </div>`;
+  }
+
   function mostrarPregunta() {
     clearInterval(timerInterval);
     if (indexActual >= preguntas.length) return;
@@ -749,7 +871,10 @@
     document.getElementById('respondidas-texto').innerText = `${respondidas} respondida${respondidas !== 1 ? 's' : ''}`;
 
     let html = `<h5 class="mb-4 fw-bold lh-base" style="color: var(--primary-dark);">${p.enunciado} <span class="badge ms-2 align-middle" style="font-size:0.75rem; background-color: var(--primary);">${p.puntos} pt${p.puntos !== 1 ? 's' : ''}</span></h5>`;
-    if (p.imagen) html += `<img src="${p.imagen}" class="pregunta-img" onerror="this.style.display='none'">`;
+    
+    // ─── FIX #3: Usar la función robusta para la imagen ───
+    html += construirHtmlImagen(p.imagen);
+
     html += `<div class="list-group mt-4">`;
     ['A','B','C','D'].forEach((l, i) => {
       const checked = resp === l ? 'checked' : '';
@@ -762,7 +887,6 @@
 
     const cont = document.getElementById('pregunta-container');
     cont.innerHTML = html;
-
     typeset(cont);
 
     document.getElementById('btn-anterior').disabled = indexActual === 0;
@@ -845,7 +969,21 @@
     mostrarRetroalimentacion(pts);
   }
 
-  // ─── RETROALIMENTACIÓN ─────────────────────────────────────
+  // ─── FIX #2: RETROALIMENTACIÓN CONDICIONAL ─────────────────
+  /**
+   * La retroalimentación se muestra solo si el quiz tiene feedback habilitado.
+   * El campo 'feedback' puede llegar como booleano true o string "TRUE"/"true"
+   * desde Google Sheets. Normalizamos antes de evaluar.
+   */
+  function esFeedbackActivo() {
+    if (!preguntas || preguntas.length === 0) return false;
+    // El campo feedback viene en la metadata del quiz cargado
+    const fb = window._quizFeedback;
+    if (fb === undefined || fb === null || fb === '') return false;
+    if (typeof fb === 'boolean') return fb;
+    return String(fb).trim().toLowerCase() === 'true';
+  }
+
   function mostrarRetroalimentacion(pts) {
     const total = preguntas.reduce((s, p) => s + p.puntos, 0);
     const pct = total > 0 ? Math.round((pts / total) * 100) : 0;
@@ -853,6 +991,19 @@
     document.getElementById('fb-score').innerText = pts + ' / ' + total + ' pts';
     document.getElementById('fb-pct').innerText = pct + '% de aciertos';
     document.getElementById('fb-nombre-quiz').innerText = document.getElementById('quiz-titulo').innerText;
+
+    // ─── FIX #2: Solo mostrar detalle si feedback está activo ───
+    const fbDetalle = document.getElementById('fb-detalle');
+    if (!esFeedbackActivo()) {
+      fbDetalle.innerHTML = `
+        <div class="alert alert-info text-center py-4" style="border-radius:12px;">
+          <div style="font-size:2rem; margin-bottom:8px;">📋</div>
+          <strong>Revisión no disponible</strong><br>
+          <span class="text-secondary">El docente no ha habilitado la retroalimentación para este quiz.</span>
+        </div>`;
+      showSection('feedback');
+      return;
+    }
 
     let html = '';
     preguntas.forEach((p, i) => {
@@ -870,7 +1021,8 @@
           <div style="flex:1" class="fs-6"><strong class="d-block mb-1">Pregunta ${i+1}:</strong> ${p.enunciado}</div>
         </div>`;
 
-      if (p.imagen) html += `<img src="${p.imagen}" class="pregunta-img mb-3" onerror="this.style.display='none'">`;
+      // ─── FIX #3: Imagen en feedback también usa el helper robusto ───
+      html += construirHtmlImagen(p.imagen);
 
       html += `<div class="list-group list-group-flush mb-2 rounded border overflow-hidden bg-white">`;
       ['A','B','C','D'].forEach((l, j) => {
@@ -886,9 +1038,9 @@
       html += `</div>`;
     });
 
-    document.getElementById('fb-detalle').innerHTML = html;
+    fbDetalle.innerHTML = html;
     showSection('feedback');
-    typeset(document.getElementById('fb-detalle'));
+    typeset(fbDetalle);
   }
 
   // ─── NAVEGACIÓN ────────────────────────────────────────────
@@ -897,9 +1049,11 @@
     document.getElementById('zipIdInput').value = '';
     document.getElementById('alerta-recuperacion-login').classList.add('d-none');
     preguntas = []; indexActual = 0; respuestasUser = []; quizPreguntasLista = [];
-    salidasPantalla = 0; // Reiniciar contador de salidas
+    salidasPantalla = 0;
+    window._quizFeedback = undefined; // Limpiar metadata de feedback
     actualizarUIAdvertencias();
     document.getElementById('adm-nombre').value = '';
+    // ─── FIX #2: Asegurar que el checkbox queda desmarcado al volver al inicio ───
     document.getElementById('adm-feedback').checked = false;
     actualizarTablaAdmin();
     showSection('login');
@@ -932,7 +1086,12 @@
     document.getElementById('adm-nombre').value = quizName;
     const opt = document.getElementById('editQuizSelect').selectedOptions[0];
     document.getElementById('adm-tiempo-global').value = opt.dataset.tiempo || '';
-    document.getElementById('adm-feedback').checked = qRes.feedback === true;
+    
+    // ─── FIX #2: Normalizar el valor de feedback (string "TRUE" o booleano) ───
+    const fbRaw = qRes.feedback;
+    const fbActivo = (typeof fbRaw === 'boolean') ? fbRaw : String(fbRaw).trim().toLowerCase() === 'true';
+    document.getElementById('adm-feedback').checked = fbActivo;
+
     quizPreguntasLista = qRes.data.map(p => ({
       texto: p.enunciado, img: p.imagen,
       a: p.opciones[0], b: p.opciones[1], c: p.opciones[2], d: p.opciones[3],
@@ -942,6 +1101,74 @@
     alert("✅ Quiz cargado en el editor.");
   }
 
+  // ─── FIX #2: Guardar metadata de feedback al cargar preguntas ─
+  // Sobreescribimos iniciarQuiz para capturar el campo feedback de la respuesta
+  const _originalIniciarQuiz = iniciarQuiz; // guardamos referencia (no se usa, pero documenta el patrón)
+
+  // Modificamos el flujo en iniciarQuiz directamente arriba (ya está en qRes.feedback)
+  // Necesitamos guardar window._quizFeedback al cargar el quiz:
+  const _patchFeedback = (qRes) => {
+    const fbRaw = qRes.feedback;
+    if (fbRaw !== undefined) {
+      window._quizFeedback = (typeof fbRaw === 'boolean') ? fbRaw : String(fbRaw).trim().toLowerCase() === 'true';
+    } else {
+      // ─── FIX #2: Si el servidor no devuelve feedback, asumir DESACTIVADO ───
+      window._quizFeedback = false;
+    }
+  };
+
+  // Reasignamos iniciarQuiz para inyectar el patch de feedback
+  (function patchIniciarQuiz() {
+    const originalFetch = window.fetch;
+    // En vez de monkey-patching fetch, redefinimos iniciarQuiz inline
+    // El patch ya está integrado en la función iniciarQuiz() definida arriba,
+    // sólo necesitamos llamar _patchFeedback(qRes) tras recibir la respuesta.
+    // Como JS no tiene decoradores simples, insertamos la llamada directamente
+    // en el flujo de iniciarQuiz redefiniéndola:
+    const _ini = async function() {
+      const zip = document.getElementById('zipIdInput').value.trim();
+      const quizName = document.getElementById('quizSelect').value;
+      if (!zip || !quizName) return alert("Por favor complete su ID y seleccione un quiz.");
+
+      const userRes = await callAPI({ action: 'validarEstudiante', zipID: zip }, 'POST');
+      if (!userRes.success) return alert("❌ " + (userRes.error || "ID ZipGrade no reconocido."));
+      infoEstudiante = userRes.data;
+
+      const intentoRes = await callAPI({ action: 'verificarIntento', zipID: zip, nombreQuiz: quizName }, 'POST');
+      if (!intentoRes.success) return alert("❌ Error al verificar intentos: " + (intentoRes.error || ""));
+      if (intentoRes.yaPresento) return alert("⚠️ Ya presentaste este quiz anteriormente. Solo se permite un intento.");
+
+      const regRes = await callAPI({ action: 'registrarIntento', zipID: zip, nombreQuiz: quizName, nombre: infoEstudiante.nombre || zip }, 'POST');
+      if (!regRes.success) return alert("❌ No se pudo registrar el intento: " + (regRes.error || ""));
+
+      const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
+      if (!qRes.success) return alert("❌ " + (qRes.error || "No se pudieron cargar las preguntas."));
+
+      // ─── FIX #2: Guardar el estado de feedback del quiz ───
+      _patchFeedback(qRes);
+
+      // ─── FIX #1: Aleatorizar orden de preguntas Y opciones ───
+      let pTemp = qRes.data;
+      shuffleArray(pTemp);
+      pTemp = pTemp.map(aleatorizarOpciones);
+
+      preguntas = pTemp;
+      indexActual = 0;
+      salidasPantalla = 0;
+      respuestasUser = new Array(preguntas.length).fill('');
+      document.getElementById('quiz-titulo').innerText = quizName;
+      document.getElementById('estudiante-activo').innerText = "👨‍🔬 Estudiante: " + (infoEstudiante.nombre || zip);
+      
+      descartarSesion();
+      actualizarUIAdvertencias();
+      showSection('quiz');
+      renderBurbujas();
+      mostrarPregunta();
+    };
+    window.iniciarQuiz = _ini;
+  })();
+
+  // ─── ADMIN: AÑADIR / EDITAR PREGUNTA ──────────────────────
   function addPreguntaALista() {
     const texto = document.getElementById('adm-p-txt').value;
     const correcta = document.getElementById('adm-p-corr').value;
@@ -964,6 +1191,8 @@
     ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('adm-p-corr').value = '';
     document.getElementById('preview-enunciado').innerHTML = '<span class="text-muted" style="font-size:0.85rem">Vista previa...</span>';
+    // Limpiar preview de imagen al añadir
+    document.getElementById('admin-img-preview-wrapper').style.display = 'none';
   }
 
   function editarPregunta(index) {
@@ -980,6 +1209,7 @@
     document.querySelector('#admin-content-nuevo .bg-light h6').innerText = `✏️ Editando pregunta #${index + 1}`;
     document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Guardar cambios';
     actualizarPreviewLatex();
+    previewAdminImg(); // Mostrar preview de la imagen al editar
     document.getElementById('adm-p-txt').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
@@ -990,6 +1220,7 @@
       document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Añadir a la lista temporal';
       ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('adm-p-corr').value = '';
+      document.getElementById('admin-img-preview-wrapper').style.display = 'none';
     }
     quizPreguntasLista.splice(index, 1);
     actualizarTablaAdmin();
@@ -1010,7 +1241,7 @@
     </tr>`).join('');
   }
 
-  // ─── PUBLICAR QUIZ CON FEEDBACK DETALLADO ──────────────────
+  // ─── PUBLICAR QUIZ ─────────────────────────────────────────
   async function publicarQuiz() {
     const nombre = document.getElementById('adm-nombre').value.trim();
     if (!nombre || quizPreguntasLista.length === 0) return alert("Faltan datos o no hay preguntas.");
@@ -1019,12 +1250,10 @@
     btn.disabled = true; 
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Procesando...';
     
-    // Configurar simulación de progreso
     const totalP = quizPreguntasLista.length;
     let progresoFalso = 0;
     setLoading(true, "Preparando el examen...");
     
-    // Intervalo que avanza el contador visual en el modal de carga
     const progresoInterval = setInterval(() => {
         progresoFalso++;
         if (progresoFalso <= totalP) {
@@ -1033,13 +1262,18 @@
             document.getElementById('loading-msg').innerText = "Organizando base de datos...";
             clearInterval(progresoInterval);
         }
-    }, 700); // 700ms de actualización artificial
+    }, 700);
 
-    // Petición real al servidor (con hideLoading para que nuestra pantalla personalizada no se reescriba)
     const res = await callAPI({
       action: 'guardarNuevoQuiz',
-      hideLoading: true, // parámetro personalizado que acabo de añadir arriba en callAPI
-      datos: { nombre, tiempo: document.getElementById('adm-tiempo-global').value, feedback: document.getElementById('adm-feedback').checked, preguntas: quizPreguntasLista }
+      hideLoading: true,
+      datos: {
+        nombre,
+        tiempo: document.getElementById('adm-tiempo-global').value,
+        // ─── FIX #2: Enviar explícitamente el valor booleano del feedback ───
+        feedback: document.getElementById('adm-feedback').checked,
+        preguntas: quizPreguntasLista
+      }
     }, 'POST');
     
     clearInterval(progresoInterval);
