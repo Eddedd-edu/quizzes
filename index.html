@@ -145,8 +145,7 @@
 
     /* Indicador de burbujas */
     .burbujas-nav { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:16px 0; }
-    .burbuja { width:38px; height:38px; border-radius:50%; border:2px solid #dee2e6; background:#fff; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color:#6c757d; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-    .burbuja:active { transform: scale(0.9); }
+    .burbuja { width:38px; height:38px; border-radius:50%; border:2px solid #dee2e6; background:#fff; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:default; transition:all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color:#6c757d; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .burbuja.respondida { background:var(--primary); border-color:var(--primary); color:#fff; }
     .burbuja.actual { border-color:var(--primary-dark); color:var(--primary-dark); transform:scale(1.15); box-shadow: 0 4px 8px rgba(17,138,178,0.2); }
 
@@ -288,8 +287,8 @@
     <div class="card p-4 border-0">
       <div id="pregunta-container"></div>
       <div class="navegacion-preguntas">
-        <button class="btn btn-outline-secondary" id="btn-anterior" onclick="irPregunta(indexActual - 1)">← Anterior</button>
-        <button class="btn btn-outline-primary" id="btn-siguiente" onclick="irPregunta(indexActual + 1)">Siguiente →</button>
+        <!-- Eliminado el botón de retroceso -->
+        <button class="btn btn-outline-primary" id="btn-siguiente" onclick="avanzarPregunta()">Siguiente →</button>
         <button class="btn btn-success px-4 fw-bold shadow-sm text-dark" style="background-color: var(--success); border-color: var(--success);" id="btn-finalizar" onclick="confirmarFinalizar()">Enviar examen ✓</button>
       </div>
     </div>
@@ -730,10 +729,27 @@
     } catch(_) {}
   }
 
-  function recuperarSesion() {
+  // RESTRICCIÓN AGREGADA: Verificar disponibilidad al recuperar sesión local
+  async function recuperarSesion() {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return;
     const s = JSON.parse(raw);
+
+    // VERIFICACIÓN DE DISPONIBILIDAD AL RECUPERAR
+    setLoading(true, "Verificando estado del quiz...");
+    const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: s.quizNombre, hideLoading: true }, 'POST');
+    setLoading(false);
+
+    if (qRes && qRes.success) {
+      const dispErr = _verificarDisponibilidad(qRes);
+      if (dispErr) {
+        alert("No puedes continuar el intento guardado:\n" + dispErr);
+        document.getElementById('alerta-recuperacion-login').classList.add('d-none');
+        return;
+      }
+      _patchFeedback(qRes); // Actualizar configuración de feedback
+    }
+
     infoEstudiante = s.infoEstudiante;
     preguntas = s.preguntas;
     respuestasUser = s.respuestasUser;
@@ -869,7 +885,7 @@
       const b = document.createElement('div');
       b.className = 'burbuja' + (i === indexActual ? ' actual' : '') + (respuestasUser[i] ? ' respondida' : '');
       b.innerText = i + 1;
-      b.onclick = () => { guardarRespuestaActual(); irPregunta(i); };
+      // ELIMINADO EL ONCLICK AQUÍ PARA EVITAR NAVEGAR POR LAS BURBUJAS
       cont.appendChild(b);
     });
   }
@@ -903,9 +919,6 @@
   }
 
   function mostrarPregunta() {
-    // ELIMINADA LA SIGUIENTE LÍNEA PARA EVITAR QUE SE DETENGA EL RELOJ
-    // clearInterval(timerInterval); 
-
     if (indexActual >= preguntas.length) return;
 
     const p = preguntas[indexActual];
@@ -936,13 +949,11 @@
     cont.innerHTML = html;
     typeset(cont);
 
-    document.getElementById('btn-anterior').disabled = indexActual === 0;
+    // Ajuste de visualización de botones (sin botón anterior)
     document.getElementById('btn-siguiente').style.display = indexActual < total - 1 ? '' : 'none';
     document.getElementById('btn-finalizar').style.display = indexActual === total - 1 ? '' : 'none';
 
     actualizarBurbujas();
-    // El cronómetro es global: NO se reinicia al cambiar de pregunta.
-    // Se inicia una sola vez en iniciarQuiz() / recuperarSesion().
   }
 
   function onRespuestaChange(radio) {
@@ -959,17 +970,26 @@
     if (sel) respuestasUser[indexActual] = sel.value;
   }
 
+  // RESTRICCIÓN AGREGADA: Control para avanzar de pregunta obligatoriamente seleccionando una respuesta
+  function avanzarPregunta() {
+    guardarRespuestaActual();
+    if (!respuestasUser[indexActual] || respuestasUser[indexActual] === '') {
+      alert("Debes seleccionar una respuesta antes de continuar a la siguiente pregunta.");
+      return;
+    }
+    irPregunta(indexActual + 1);
+  }
+
+  // RESTRICCIÓN AGREGADA: Bloqueo de vuelta atrás
   function irPregunta(idx) {
     if (idx < 0 || idx >= preguntas.length) return;
+    if (idx < indexActual) return; // BLOQUEA MOVERSE HACIA ATRÁS
     guardarRespuestaActual();
     indexActual = idx;
     mostrarPregunta();
   }
 
   // ─── CRONÓMETRO GLOBAL DEL QUIZ ────────────────────────────
-  // Se inicia UNA SOLA VEZ al comenzar el quiz y cuenta el tiempo
-  // total disponible. Cambiar de pregunta NO lo reinicia.
-  // tiempoRestante persiste entre preguntas y se guarda en sesión local.
   let tiempoRestante = 0;
 
   function iniciarCronometroGlobal(segundos) {
@@ -996,17 +1016,20 @@
   }
 
   function reanudarCronometro(segundosRestantes) {
-    // Usado al recuperar sesión guardada para continuar desde donde quedó
     iniciarCronometroGlobal(segundosRestantes);
   }
 
   // ─── CONFIRMAR Y FINALIZAR ─────────────────────────────────
   function confirmarFinalizar() {
     guardarRespuestaActual();
-    const sinResponder = respuestasUser.filter(r => !r || r === '').length;
-    const msg = sinResponder > 0
-      ? `Tienes ${sinResponder} pregunta${sinResponder > 1 ? 's' : ''} sin responder. ¿Deseas enviar el examen de todas formas?`
-      : '¿Deseas enviar el examen ahora?';
+    
+    // Validar que la última pregunta también tenga respuesta
+    if (!respuestasUser[indexActual] || respuestasUser[indexActual] === '') {
+      alert("Debes seleccionar una respuesta en esta última pregunta antes de finalizar el examen.");
+      return;
+    }
+    
+    const msg = '¿Deseas enviar el examen de forma definitiva ahora?';
     if (!confirm(msg)) return;
     finalizarQuiz();
   }
@@ -1032,14 +1055,8 @@
   }
 
   // ─── FIX #2: RETROALIMENTACIÓN CONDICIONAL ─────────────────
-  /**
-   * La retroalimentación se muestra solo si el quiz tiene feedback habilitado.
-   * El campo 'feedback' puede llegar como booleano true o string "TRUE"/"true"
-   * desde Google Sheets. Normalizamos antes de evaluar.
-   */
   function esFeedbackActivo() {
     if (!preguntas || preguntas.length === 0) return false;
-    // El campo feedback viene en la metadata del quiz cargado
     const fb = window._quizFeedback;
     if (fb === undefined || fb === null || fb === '') return false;
     if (typeof fb === 'boolean') return fb;
@@ -1054,7 +1071,6 @@
     document.getElementById('fb-pct').innerText = pct + '% de aciertos';
     document.getElementById('fb-nombre-quiz').innerText = document.getElementById('quiz-titulo').innerText;
 
-    // ─── FIX #2: Solo mostrar detalle si feedback está activo ───
     const fbDetalle = document.getElementById('fb-detalle');
     if (!esFeedbackActivo()) {
       fbDetalle.innerHTML = `
@@ -1083,7 +1099,6 @@
           <div style="flex:1" class="fs-6"><strong class="d-block mb-1">Pregunta ${i+1}:</strong> ${p.enunciado}</div>
         </div>`;
 
-      // ─── FIX #3: Imagen en feedback también usa el helper robusto ───
       html += construirHtmlImagen(p.imagen);
 
       html += `<div class="list-group list-group-flush mb-2 rounded border overflow-hidden bg-white">`;
@@ -1108,13 +1123,13 @@
   // ─── NAVEGACIÓN ────────────────────────────────────────────
   function irAlInicio() {
     clearInterval(timerInterval);
-    clearTimeout(timerInterval); // El nuevo cronómetro usa setTimeout encadenado
+    clearTimeout(timerInterval); 
     tiempoRestante = 0;
     document.getElementById('zipIdInput').value = '';
     document.getElementById('alerta-recuperacion-login').classList.add('d-none');
     preguntas = []; indexActual = 0; respuestasUser = []; quizPreguntasLista = [];
     salidasPantalla = 0;
-    window._quizFeedback = undefined; // Limpiar metadata de feedback
+    window._quizFeedback = undefined; 
     actualizarUIAdvertencias();
     document.getElementById('adm-nombre').value = '';
     document.getElementById('adm-feedback').checked = false;
@@ -1154,7 +1169,6 @@
     const opt = document.getElementById('editQuizSelect').selectedOptions[0];
     document.getElementById('adm-tiempo-global').value = opt.dataset.tiempo || '';
     
-    // ─── FIX #2: Normalizar el valor de feedback (string "TRUE" o booleano) ───
     const fbRaw = qRes.feedback;
     const fbActivo = (typeof fbRaw === 'boolean') ? fbRaw : String(fbRaw).trim().toLowerCase() === 'true';
     document.getElementById('adm-feedback').checked = fbActivo;
@@ -1177,29 +1191,19 @@
   }
 
   // ─── FIX #2: Guardar metadata de feedback al cargar preguntas ─
-  // Sobreescribimos iniciarQuiz para capturar el campo feedback de la respuesta
-  const _originalIniciarQuiz = iniciarQuiz; // guardamos referencia (no se usa, pero documenta el patrón)
+  const _originalIniciarQuiz = iniciarQuiz; 
 
-  // Modificamos el flujo en iniciarQuiz directamente arriba (ya está en qRes.feedback)
-  // Necesitamos guardar window._quizFeedback al cargar el quiz:
   const _patchFeedback = (qRes) => {
     const fbRaw = qRes.feedback;
     if (fbRaw !== undefined) {
       window._quizFeedback = (typeof fbRaw === 'boolean') ? fbRaw : String(fbRaw).trim().toLowerCase() === 'true';
     } else {
-      // ─── FIX #2: Si el servidor no devuelve feedback, asumir DESACTIVADO ───
       window._quizFeedback = false;
     }
   };
 
-  // Reasignamos iniciarQuiz para inyectar el patch de feedback
   (function patchIniciarQuiz() {
     const originalFetch = window.fetch;
-    // En vez de monkey-patching fetch, redefinimos iniciarQuiz inline
-    // El patch ya está integrado en la función iniciarQuiz() definida arriba,
-    // sólo necesitamos llamar _patchFeedback(qRes) tras recibir la respuesta.
-    // Como JS no tiene decoradores simples, insertamos la llamada directamente
-    // en el flujo de iniciarQuiz redefiniéndola:
     const _ini = async function() {
       const zip = document.getElementById('zipIdInput').value.trim();
       const quizName = document.getElementById('quizSelect').value;
@@ -1219,10 +1223,8 @@
       const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
       if (!qRes.success) return alert("❌ " + (qRes.error || "No se pudieron cargar las preguntas."));
 
-      // ─── FIX #2: Guardar el estado de feedback del quiz ───
       _patchFeedback(qRes);
 
-      // ─── FIX #1: Aleatorizar orden de preguntas Y opciones ───
       let pTemp = qRes.data;
       shuffleArray(pTemp);
       pTemp = pTemp.map(aleatorizarOpciones);
@@ -1237,7 +1239,6 @@
       respuestasUser = new Array(preguntas.length).fill('');
       document.getElementById('quiz-titulo').innerText = quizName;
 
-      // Encabezado enriquecido: nombre + grado del estudiante
       const nombreEst = infoEstudiante.nombre || zip;
       const gradoEst  = infoEstudiante.grado  || infoEstudiante.curso || '';
       let badgeHtml = `<span class="badge rounded-pill px-3 py-2" style="background:var(--primary-dark); font-size:0.8rem;">👨‍🎓 ${nombreEst}</span>`;
@@ -1245,7 +1246,6 @@
       badgeHtml += `<span class="badge rounded-pill px-3 py-2 bg-secondary" style="font-size:0.8rem;">🆔 ${zip}</span>`;
       document.getElementById('estudiante-activo').innerHTML = badgeHtml;
 
-      // Mostrar info de cierre si el quiz tiene fecha límite
       _mostrarBadgeDisponibilidad(qRes);
 
       descartarSesion();
@@ -1254,13 +1254,11 @@
       renderBurbujas();
       mostrarPregunta();
 
-      // ─── CRONÓMETRO GLOBAL: arrancar una sola vez al iniciar el quiz ───
       const opt = document.getElementById('quizSelect').selectedOptions[0];
       const segundosTotales = opt && opt.dataset.tiempo ? parseInt(opt.dataset.tiempo) : 0;
       if (segundosTotales > 0) {
         iniciarCronometroGlobal(segundosTotales);
       } else {
-        // Sin tiempo configurado: mostrar --:-- en el reloj
         document.getElementById('reloj').innerText = '--:--';
         document.getElementById('reloj').classList.remove('urgente');
       }
@@ -1291,7 +1289,6 @@
     ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('adm-p-corr').value = '';
     document.getElementById('preview-enunciado').innerHTML = '<span class="text-muted" style="font-size:0.85rem">Vista previa...</span>';
-    // Limpiar preview de imagen al añadir
     document.getElementById('admin-img-preview-wrapper').style.display = 'none';
   }
 
@@ -1309,7 +1306,7 @@
     document.querySelector('#admin-content-nuevo .bg-light h6').innerText = `✏️ Editando pregunta #${index + 1}`;
     document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Guardar cambios';
     actualizarPreviewLatex();
-    previewAdminImg(); // Mostrar preview de la imagen al editar
+    previewAdminImg(); 
     document.getElementById('adm-p-txt').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
@@ -1436,17 +1433,17 @@
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   }
+
   // ═══════════════════════════════════════════════════════════
   // DISPONIBILIDAD DEL QUIZ
   // ═══════════════════════════════════════════════════════════
 
-  /** Muestra/oculta los campos de fecha según el estado seleccionado */
   function toggleFechasCierre() {
     const estado = document.getElementById('adm-estado').value;
     const showFechas = estado === 'programado';
     document.getElementById('col-fecha-apertura').style.display = showFechas ? '' : 'none';
     document.getElementById('col-fecha-cierre').style.display   = showFechas ? '' : 'none';
-    // Actualizar preview
+    
     const prev = document.getElementById('preview-disponibilidad');
     if (estado === 'abierto') {
       prev.innerHTML = '🟢 Siempre disponible';
@@ -1470,7 +1467,6 @@
     }
   }
 
-  /** Convierte una fecha ISO/string a formato datetime-local (YYYY-MM-DDTHH:mm) */
   function _isoLocal(val) {
     if (!val) return '';
     try {
@@ -1481,10 +1477,6 @@
     } catch { return ''; }
   }
 
-  /**
-   * Verifica si el quiz está disponible en este momento.
-   * Devuelve null si puede continuar, o un string con el mensaje de error.
-   */
   function _verificarDisponibilidad(qRes) {
     const estado = (qRes.estado || 'abierto').toLowerCase().trim();
     if (estado === 'cerrado') {
@@ -1505,10 +1497,9 @@
         }
       }
     }
-    return null; // disponible
+    return null; 
   }
 
-  /** Muestra un badge de cierre próximo en el encabezado del quiz */
   function _mostrarBadgeDisponibilidad(qRes) {
     const el = document.getElementById('quiz-disponibilidad');
     if (!el) return;
