@@ -22,6 +22,7 @@
       --success: #06d6a0;
       --danger: #ef476f;
       --warning: #ffd166;
+      --info: #48cae4;
       --bg-app: #f4f7f6;
     }
     
@@ -471,7 +472,7 @@
             <div class="col-sm-6"><input id="adm-p-d" class="form-control shadow-sm border-0" placeholder="Opción D" oninput="actualizarPreviewOpciones()"></div>
           </div>
           
-          <div class="row g-3 mt-1">
+          <div class="row g-3 mt-1 mb-3">
             <div class="col-sm-6">
               <select id="adm-p-corr" class="form-select border-primary shadow-sm fw-semibold">
                 <option value="" disabled selected>-- Respuesta Correcta --</option>
@@ -483,6 +484,10 @@
               <input type="number" id="adm-p-puntos" class="form-control shadow-sm border-0" placeholder="Puntaje (Defecto: 1)">
             </div>
           </div>
+          
+          <label class="small fw-bold text-secondary mb-1">Retroalimentación (Opcional)</label>
+          <textarea id="adm-p-retro" class="form-control mb-1 shadow-sm border-0" rows="2" placeholder="Explicación de la respuesta correcta, mostrada al estudiante al finalizar..."></textarea>
+
           <button class="btn btn-secondary w-100 mt-4 fw-bold p-2 shadow-sm" onclick="addPreguntaALista()">Añadir a la lista temporal</button>
         </div>
 
@@ -517,11 +522,14 @@
         </div>
         
         <div class="row mt-4 g-3">
-          <div class="col-sm-6">
+          <div class="col-sm-4">
             <button class="btn btn-info w-100 btn-lg shadow fw-bold text-white" onclick="abrirPreviewAdmin()">👁️ VISTA PREVIA</button>
           </div>
-          <div class="col-sm-6">
-            <button id="btn-publicar" class="btn btn-success w-100 btn-lg shadow fw-bold text-dark" style="background-color: var(--success); border-color: var(--success);" onclick="publicarQuiz()">🚀 GUARDAR QUIZ EN SHEETS</button>
+          <div class="col-sm-4">
+            <button class="btn btn-secondary w-100 btn-lg shadow fw-bold text-white" onclick="exportarQuizCSV()">⬇️ EXPORTAR CSV</button>
+          </div>
+          <div class="col-sm-4">
+            <button id="btn-publicar" class="btn btn-success w-100 btn-lg shadow fw-bold text-dark" style="background-color: var(--success); border-color: var(--success);" onclick="publicarQuiz()">🚀 GUARDAR EN SHEETS</button>
           </div>
         </div>
       </div>
@@ -595,8 +603,8 @@
 
   let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null,
       timerInterval, quizPreguntasLista = [], notasVisiblesData = [], editandoIndex = -1;
-  let allQuizzes = []; // Almacena todos los quizzes disponibles
-  let todasLasNotas = []; // Almacena crudo todas las notas para filtrar en frontend
+  let allQuizzes = []; 
+  let todasLasNotas = []; 
   
   // Variables Anti-Trampas y Flujo
   let salidasPantalla = 0;
@@ -1277,8 +1285,15 @@
       });
       html += `</div>`;
 
-      if (sinResp) html += `<small class="text-warning-emphasis fw-bold d-block mt-2">No respondiste esta pregunta.</small>`;
-      else if (!acerto) html += `<small class="text-danger fw-bold d-block mt-2">Respuesta incorrecta. ¡Debes repasar este concepto!</small>`;
+      if (sinResp) {
+          html += `<small class="text-warning-emphasis fw-bold d-block mt-2">No respondiste esta pregunta.</small>`;
+      } else if (!acerto) {
+          html += `<small class="text-danger fw-bold d-block mt-2">Respuesta incorrecta. ¡Debes repasar este concepto!</small>`;
+      }
+      
+      if (p.retro) {
+          html += `<div class="mt-2 p-3 rounded" style="background-color: #f8f9fa; border-left: 4px solid var(--info); font-size: 0.9rem;"><strong>💡 Explicación:</strong> ${p.retro}</div>`;
+      }
       
       html += `</div>`;
     });
@@ -1331,7 +1346,7 @@
     if (t === 'notas') cargarNotas();
   }
 
-  // ─── ADMIN: CREAR / EDITAR ─────────────────────────────────
+  // ─── ADMIN: CREAR / EDITAR / EXPORTAR ──────────────────────
   async function cargarQuizParaEditar() {
     const quizName = document.getElementById('editQuizSelect').value;
     if (!quizName) return;
@@ -1349,7 +1364,7 @@
     quizPreguntasLista = qRes.data.map(p => ({
       texto: p.enunciado, img: p.imagen,
       a: p.opciones[0], b: p.opciones[1], c: p.opciones[2], d: p.opciones[3],
-      correcta: p.correcta, puntos: p.puntos
+      correcta: p.correcta, puntos: p.puntos, retro: p.retro || p.retroalimentacion || ''
     }));
 
     const estado = qRes.estado || 'abierto';
@@ -1443,7 +1458,8 @@
       texto, img: document.getElementById('adm-p-img').value,
       a: document.getElementById('adm-p-a').value, b: document.getElementById('adm-p-b').value,
       c: document.getElementById('adm-p-c').value, d: document.getElementById('adm-p-d').value,
-      correcta, puntos: parseFloat(document.getElementById('adm-p-puntos').value) || 1
+      correcta, puntos: parseFloat(document.getElementById('adm-p-puntos').value) || 1,
+      retro: document.getElementById('adm-p-retro').value.trim()
     };
     if (editandoIndex >= 0) {
       quizPreguntasLista[editandoIndex] = datos;
@@ -1454,7 +1470,7 @@
       quizPreguntasLista.push(datos);
     }
     actualizarTablaAdmin();
-    ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
+    ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos','adm-p-retro'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('adm-p-corr').value = '';
     document.getElementById('preview-enunciado').innerHTML = '<span class="text-muted" style="font-size:0.85rem">Vista previa...</span>';
     document.getElementById('admin-img-preview-wrapper').style.display = 'none';
@@ -1471,6 +1487,7 @@
     document.getElementById('adm-p-d').value = p.d || '';
     document.getElementById('adm-p-corr').value = p.correcta;
     document.getElementById('adm-p-puntos').value = p.puntos;
+    document.getElementById('adm-p-retro').value = p.retro || '';
     document.querySelector('#admin-content-nuevo .bg-light h6').innerText = `✏️ Editando pregunta #${index + 1}`;
     document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Guardar cambios';
     actualizarPreviewLatex();
@@ -1483,7 +1500,7 @@
       editandoIndex = -1;
       document.querySelector('#admin-content-nuevo .bg-light h6').innerText = 'Añadir Pregunta';
       document.querySelector('#admin-content-nuevo .btn-secondary').innerText = 'Añadir a la lista temporal';
-      ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos'].forEach(id => document.getElementById(id).value = '');
+      ['adm-p-txt','adm-p-img','adm-p-a','adm-p-b','adm-p-c','adm-p-d','adm-p-puntos','adm-p-retro'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('adm-p-corr').value = '';
       document.getElementById('admin-img-preview-wrapper').style.display = 'none';
     }
@@ -1504,6 +1521,37 @@
       <td class="text-center"><button onclick="editarPregunta(${i})" class="btn btn-sm btn-warning py-1 px-2 shadow-sm" title="Editar">✏️</button></td>
       <td class="text-center"><button onclick="quitarPregunta(${i})" class="btn btn-sm btn-danger py-1 px-2 shadow-sm" title="Eliminar">✕</button></td>
     </tr>`).join('');
+  }
+
+  function exportarQuizCSV() {
+    if (quizPreguntasLista.length === 0) {
+      return alert("No hay preguntas en la lista temporal para exportar.");
+    }
+    const nombre = document.getElementById('adm-nombre').value.trim() || 'Quiz_Generico';
+    const grado = document.getElementById('adm-grado').value || 'Todos';
+    const tiempo = document.getElementById('adm-tiempo-global').value || '';
+    
+    let data = [];
+    data.push(["Grado", "Nombre Quiz", "Tiempo", "Enunciado", "Imagen", "Opcion A", "Opcion B", "Opcion C", "Opcion D", "Correcta", "Puntos", "Retroalimentacion"]);
+    
+    quizPreguntasLista.forEach(p => {
+      data.push([
+        grado, 
+        nombre, 
+        tiempo, 
+        p.texto, 
+        p.img || '', 
+        p.a, 
+        p.b, 
+        p.c, 
+        p.d, 
+        p.correcta, 
+        p.puntos, 
+        p.retro || ''
+      ]);
+    });
+    
+    descargarCSV(data, `Estructura_${nombre.replace(/\s+/g,'_')}.csv`);
   }
 
   // ─── VISTA PREVIA ADMIN ────────────────────────────────────
@@ -1531,7 +1579,12 @@
           ${badgeCorrect}
         </div>`;
       });
-      html += `</div></div>`;
+      html += `</div>`;
+      
+      if(p.retro) {
+         html += `<div class="mt-3 p-3 rounded bg-light border-start border-info border-4"><strong class="text-info-emphasis">💡 Explicación:</strong> <span class="text-secondary">${p.retro}</span></div>`;
+      }
+      html += `</div>`;
     });
     
     container.innerHTML = html;
@@ -1586,7 +1639,7 @@
     setLoading(false);
 
     btn.disabled = false; 
-    btn.innerText = "🚀 GUARDAR QUIZ EN SHEETS";
+    btn.innerText = "🚀 GUARDAR EN SHEETS";
     
     if (res.success) { 
         alert("✅ Quiz guardado exitosamente."); 
