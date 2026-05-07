@@ -213,6 +213,17 @@
   <span id="loading-msg" class="fw-bold fs-5 mt-2 text-center px-3" style="color: var(--primary-dark);">Cargando...</span>
 </div>
 
+<!-- OVERLAY VISTA PREVIA ADMIN -->
+<div id="admin-preview-overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-app overflow-auto" style="z-index: 10500; background-color: var(--bg-app);">
+  <div class="container py-5" style="max-width: 800px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+      <h3 class="fw-bold text-primary-dark mb-0">👁️ Vista Previa del Examen</h3>
+      <button class="btn btn-danger fw-bold shadow-sm" onclick="cerrarPreviewAdmin()">Cerrar Previsualización</button>
+    </div>
+    <div id="admin-preview-container" class="d-flex flex-column gap-4"></div>
+  </div>
+</div>
+
 <!-- Modal Ligthbox para Zoom de Imágenes -->
 <div id="lightbox-overlay" class="lightbox-overlay" onclick="cerrarLightbox()">
   <img id="lightbox-img" class="lightbox-img" src="" alt="Zoom Imagen">
@@ -480,7 +491,7 @@
           <div class="table-responsive bg-white rounded border">
             <table class="table table-sm table-bordered mb-0" style="font-size:0.85rem;">
               <thead class="table-primary"><tr><th>Lo que escribes</th><th>Resultado</th></tr></thead>
-              <tbody>
+              <tbody id="lista-latex-body">
                 <tr><td><code>$\ce{H2SO4}$</code></td><td id="ex1">H₂SO₄</td></tr>
                 <tr><td><code>$\ce{2H2 + O2 -> 2H2O}$</code></td><td id="ex2">2H₂ + O₂ → 2H₂O</td></tr>
                 <tr><td><code>$\ce{Fe^{2+}}$</code></td><td id="ex3">Fe²⁺</td></tr>
@@ -504,7 +515,15 @@
             </table>
           </div>
         </div>
-        <button id="btn-publicar" class="btn btn-success w-100 btn-lg mt-4 shadow fw-bold text-dark" style="background-color: var(--success); border-color: var(--success);" onclick="publicarQuiz()">🚀 GUARDAR QUIZ EN SHEETS</button>
+        
+        <div class="row mt-4 g-3">
+          <div class="col-sm-6">
+            <button class="btn btn-info w-100 btn-lg shadow fw-bold text-white" onclick="abrirPreviewAdmin()">👁️ VISTA PREVIA</button>
+          </div>
+          <div class="col-sm-6">
+            <button id="btn-publicar" class="btn btn-success w-100 btn-lg shadow fw-bold text-dark" style="background-color: var(--success); border-color: var(--success);" onclick="publicarQuiz()">🚀 GUARDAR QUIZ EN SHEETS</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1485,6 +1504,44 @@
       <td class="text-center"><button onclick="editarPregunta(${i})" class="btn btn-sm btn-warning py-1 px-2 shadow-sm" title="Editar">✏️</button></td>
       <td class="text-center"><button onclick="quitarPregunta(${i})" class="btn btn-sm btn-danger py-1 px-2 shadow-sm" title="Eliminar">✕</button></td>
     </tr>`).join('');
+  }
+
+  // ─── VISTA PREVIA ADMIN ────────────────────────────────────
+  function abrirPreviewAdmin() {
+    if (quizPreguntasLista.length === 0) {
+      return alert("No hay preguntas añadidas para previsualizar.");
+    }
+    const container = document.getElementById('admin-preview-container');
+    let html = '';
+    quizPreguntasLista.forEach((p, idx) => {
+      html += `<div class="card p-4 shadow-sm border-0 mb-4 bg-white" style="border-left: 5px solid var(--primary) !important;">`;
+      html += `<h5 class="mb-3 fw-bold lh-base" style="color: var(--primary-dark);"><span class="text-secondary me-2">${idx + 1}.</span>${p.texto} <span class="badge ms-2 align-middle" style="font-size:0.75rem; background-color: var(--primary);">${p.puntos} pt${p.puntos !== 1 ? 's' : ''}</span></h5>`;
+      
+      html += construirHtmlImagen(p.img);
+      
+      html += `<div class="list-group mt-3">`;
+      const opciones = [p.a, p.b, p.c, p.d];
+      ['A','B','C','D'].forEach((l, i) => {
+        const isCorrect = (l === p.correcta);
+        const badgeCorrect = isCorrect ? `<span class="badge bg-success ms-auto">Respuesta Correcta</span>` : '';
+        const bgClass = isCorrect ? 'bg-success bg-opacity-10 border-success fw-bold' : 'bg-light';
+        
+        html += `<div class="list-group-item d-flex align-items-center ${bgClass}">
+          <span class="fs-6 w-100"><b>${l}.</b> ${opciones[i] || ''}</span>
+          ${badgeCorrect}
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    
+    container.innerHTML = html;
+    typeset(container);
+    document.getElementById('admin-preview-overlay').classList.remove('d-none');
+  }
+
+  function cerrarPreviewAdmin() {
+    document.getElementById('admin-preview-overlay').classList.add('d-none');
+    document.getElementById('admin-preview-container').innerHTML = '';
   }
 
   // ─── PUBLICAR QUIZ ─────────────────────────────────────────
