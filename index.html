@@ -5,12 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#203a43">
   <title>I.E.T. San José - Sistema de Quizzes</title>
-  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
   <script>
     window.MathJax = {
       tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']], packages: {'[+]': ['mhchem']} },
@@ -20,7 +15,6 @@
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
-  
   <style>
     :root {
       --primary: #118ab2;
@@ -220,6 +214,7 @@
   <span id="loading-msg" class="fw-bold fs-5 mt-2 text-center px-3" style="color: var(--primary-dark);">Cargando...</span>
 </div>
 
+<!-- OVERLAY VISTA PREVIA ADMIN -->
 <div id="admin-preview-overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-app overflow-auto" style="z-index: 10500; background-color: var(--bg-app);">
   <div class="container py-5" style="max-width: 800px;">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
@@ -230,6 +225,7 @@
   </div>
 </div>
 
+<!-- Modal Ligthbox para Zoom de Imágenes -->
 <div id="lightbox-overlay" class="lightbox-overlay" onclick="cerrarLightbox()">
   <img id="lightbox-img" class="lightbox-img" src="" alt="Zoom Imagen">
 </div>
@@ -280,6 +276,7 @@
     <button class="btn btn-outline-secondary w-100 fw-bold shadow-sm" onclick="consultarMisResultados()">📊 Consultar mis resultados</button>
   </section>
 
+  <!-- SECCIÓN LOGIN ADMIN CON FIREBASE -->
   <section id="sec-admin-login" class="card p-4 mx-auto shadow-sm d-none" style="max-width:400px;">
     <h4 class="text-center mb-4 fw-bold" style="color: var(--primary-dark);">🔐 Acceso Admin</h4>
     <div class="mb-3">
@@ -292,6 +289,7 @@
     <button class="btn btn-light w-100 mt-2 fw-bold text-secondary" onclick="irAlInicio()">Cancelar</button>
   </section>
 
+  <!-- SECCIÓN MIS RESULTADOS -->
   <section id="sec-mis-resultados" class="d-none">
     <div class="card p-4 mx-auto shadow-sm">
       <h4 class="mb-3 fw-bold" style="color: var(--primary-dark);">📊 Historial de Resultados</h4>
@@ -301,6 +299,7 @@
     </div>
   </section>
 
+  <!-- SECCIÓN QUIZ -->
   <section id="sec-quiz" class="d-none">
     <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2 bg-white p-3 rounded-3 shadow-sm border-start border-5 border-info">
       <div style="flex:1; min-width:0;">
@@ -313,6 +312,7 @@
       </div>
     </div>
 
+    <!-- Alerta de salidas -->
     <div class="alert alert-warning py-2 mb-3 d-none fw-bold shadow-sm" id="alerta-salidas">
       ⚠️ ADVERTENCIA: Has salido de la pestaña <span id="contador-salidas">0</span> veces de <span id="max-salidas-txt">3</span> permitidas.
     </div>
@@ -337,6 +337,7 @@
     </div>
   </section>
 
+  <!-- SECCIÓN REVISIÓN FINAL -->
   <section id="sec-revision" class="d-none">
     <div class="card p-4 mx-auto border-0 shadow" style="max-width:800px; background: rgba(255, 255, 255, 0.95);">
       <h3 class="fw-bold mb-3 text-center" style="color: var(--primary-dark);">Revisión Final del Examen</h3>
@@ -349,6 +350,7 @@
     </div>
   </section>
 
+  <!-- SECCIÓN FEEDBACK -->
   <section id="sec-feedback" class="d-none">
     <div class="card p-4 text-center py-5 mb-4 border-top border-5 border-success">
       <div class="resultado-score" id="fb-score">0</div>
@@ -360,6 +362,7 @@
     <button class="btn btn-primary btn-lg mt-4 w-100 fw-bold shadow-sm" onclick="irAlInicio()">🏠 Volver al inicio</button>
   </section>
 
+  <!-- SECCIÓN ADMIN -->
   <section id="sec-admin" class="d-none">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h3 class="fw-bold m-0" style="color: var(--primary-dark);">Gestión Académica</h3>
@@ -384,36 +387,32 @@
           <button class="btn btn-info text-white fw-bold px-4" onclick="cargarQuizParaEditar()">Cargar</button>
         </div>
         <hr class="mb-4 opacity-10">
-        
-        <div class="row g-4 mb-4 align-items-end">
-          <div class="col-md-3">
+        <div class="row g-4 mb-4">
+          <div class="col-md-4">
             <label class="small fw-bold text-uppercase text-secondary mb-2">Nombre del Quiz</label>
-            <input type="text" id="adm-nombre" class="form-control form-control-lg bg-light" placeholder="Ej: Periodo 1">
-          </div>
-          <div class="col-md-2">
-            <label class="small fw-bold text-uppercase text-secondary mb-2">Tiempo (seg)</label>
-            <input type="number" id="adm-tiempo-global" class="form-control form-control-lg bg-light" placeholder="1800">
-          </div>
-          <div class="col-md-2">
-            <label class="small fw-bold text-uppercase text-secondary mb-2">Mostrar (N)</label>
-            <input type="number" id="adm-num-preguntas" class="form-control form-control-lg bg-light" title="Dejar vacío o 0 para mostrar todas" placeholder="Todas (0)">
+            <input type="text" id="adm-nombre" class="form-control form-control-lg bg-light" placeholder="Ej: Periodo 1 - Grado 10">
           </div>
           <div class="col-md-3">
-            <label class="small fw-bold text-uppercase text-secondary mb-2">Grado</label>
+            <label class="small fw-bold text-uppercase text-secondary mb-2">Tiempo (seg)</label>
+            <input type="number" id="adm-tiempo-global" class="form-control form-control-lg bg-light" placeholder="Ej: 1800">
+          </div>
+          <div class="col-md-3">
+            <label class="small fw-bold text-uppercase text-secondary mb-2">Grado Dirigido</label>
             <select id="adm-grado" class="form-select form-select-lg bg-light">
               <option value="Todos">Todos</option>
               <option value="10">Décimo (10°)</option>
               <option value="11">Once (11°)</option>
             </select>
           </div>
-          <div class="col-md-2 d-flex">
-            <div class="form-check mb-0 bg-light p-2 rounded w-100 border text-center d-flex align-items-center justify-content-center">
-              <input class="form-check-input m-0" type="checkbox" id="adm-feedback">
-              <label class="form-check-label small fw-bold text-uppercase ms-2" for="adm-feedback">Feedback</label>
+          <div class="col-md-2 d-flex align-items-end">
+            <div class="form-check mb-3 bg-light p-2 rounded w-100 border text-center">
+              <input class="form-check-input ms-1" type="checkbox" id="adm-feedback">
+              <label class="form-check-label small fw-bold text-uppercase ms-2 mt-1" for="adm-feedback">Feedback</label>
             </div>
           </div>
         </div>
 
+        <!-- ─── DISPONIBILIDAD DEL QUIZ ───────────────────────── -->
         <div class="p-3 border rounded-3 mb-4 bg-light" style="border-color:#cce5ff !important;">
           <h6 class="fw-bold text-primary mb-3">🗓️ Disponibilidad del Quiz</h6>
           <div class="row g-3">
@@ -545,31 +544,17 @@
           </select>
 
           <label class="fw-bold mb-0 text-secondary ms-2">Grado:</label>
-          <select id="filtroGradoNotas" class="form-select border-0 shadow-sm" style="max-width: 120px;" onchange="renderTablaNotas()">
+          <select id="filtroGradoNotas" class="form-select border-0 shadow-sm" style="max-width: 150px;" onchange="renderTablaNotas()">
             <option value="">Todos</option>
-            <option value="10">10°</option>
-            <option value="11">11°</option>
-          </select>
-
-          <label class="fw-bold mb-0 text-secondary ms-2">Grupo:</label>
-          <select id="filtroGrupoNotas" class="form-select border-0 shadow-sm" style="max-width: 100px;" onchange="renderTablaNotas()">
-            <option value="">Todos</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
+            <option value="10">Décimo (10°)</option>
+            <option value="11">Once (11°)</option>
           </select>
 
           <div class="ms-auto d-flex gap-2 flex-wrap w-100 w-md-auto mt-2 mt-md-0">
-            <button class="btn btn-warning btn-sm fw-bold text-dark shadow-sm flex-grow-1" onclick="generarAnalisisReactivos()">📊 Análisis de Ítems</button>
-            <button class="btn btn-danger btn-sm fw-bold shadow-sm flex-grow-1" onclick="descargarReportePDF()">📄 Reporte PDF</button>
-            <button class="btn btn-outline-primary btn-sm fw-semibold flex-grow-1" onclick="exportarNotasVisibles()">📄 Exportar CSV</button>
+            <button class="btn btn-outline-primary btn-sm fw-semibold flex-grow-1" onclick="exportarNotasVisibles()">📄 Exportar vista (CSV)</button>
+            <button class="btn btn-success btn-sm fw-semibold flex-grow-1 text-dark" style="background-color: var(--success); border-color: var(--success);" onclick="exportarNotasCompleto()">📥 Exportar completo</button>
           </div>
         </div>
-        
-        <div id="analisis-reactivos-container" class="mb-4 mt-3"></div>
-        
         <div class="table-responsive bg-white border rounded shadow-sm" id="tabla-notas" style="min-height: 200px;"></div>
       </div>
     </div>
@@ -577,6 +562,7 @@
 
 </div>
 
+<!-- INICIALIZACIÓN DE FIREBASE (MÓDULO) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
@@ -610,9 +596,9 @@
   };
 </script>
 
+<!-- LÓGICA PRINCIPAL DE LA APLICACIÓN -->
 <script>
-  // URL DE TU WEB APP
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyib-ZHwU6Lu5bfRSVRGggF9qm4fOOYohUnKalTMjRW8GtV-NXqX15pc9lF3aLMCk8Zyw/exec';
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzn9WMJUm-smSA7odpX1Q4t-6fbhIw6M80MZHZa2Au6BXRM_RPiJcKqO5lH4DJj-T3F/exec';
   const LS_KEY = 'iet_quiz_sesion';
 
   let preguntas = [], indexActual = 0, respuestasUser = [], infoEstudiante = null,
@@ -790,24 +776,20 @@
       return alert("No se encontraron resultados en la base de datos.");
     }
     const headers = res.data[0];
-    const idxID = headers.findIndex(h => String(h).toUpperCase().includes('ID'));
-    const iColID = idxID !== -1 ? idxID : 2; // Default a la columna 2 según tu archivo
-
-    const misNotas = res.data.slice(1).filter(row => String(row[iColID]).trim() === zip);
+    const misNotas = res.data.slice(1).filter(row => row.some(cell => String(cell).trim() === zip));
     if (misNotas.length === 0) {
       return alert("No se encontraron quizzes presentados para el ID: " + zip);
     }
     let nombreEst = "Estudiante ID: " + zip;
-    const idxNombre = headers.findIndex(h => String(h).toUpperCase().includes('ESTUDIANTE') || String(h).toUpperCase().includes('NOMBRE'));
-    if (misNotas[0] && idxNombre !== -1) {
-       nombreEst = misNotas[0][idxNombre] || nombreEst; 
+    if (misNotas[0] && misNotas[0].length >= 3) {
+       nombreEst = misNotas[0][2] || nombreEst; 
     }
     document.getElementById('info-estudiante-resultados').innerHTML = `<strong>👨‍🔬 ${nombreEst}</strong>`;
     let html = '<div class="table-responsive border rounded"><table class="table table-hover table-sm align-middle mb-0"><thead class="table-light"><tr>';
     headers.forEach(h => html += `<th>${h}</th>`);
     html += '</tr></thead><tbody>';
     misNotas.forEach(row => {
-      html += '<tr>' + row.map((c, idx) => `<td>${(idx === 5 || String(c).includes('GMT') || String(c).includes('T0')) && !isNaN(Date.parse(c)) ? new Date(c).toLocaleString() : c}</td>`).join('') + '</tr>';
+      html += '<tr>' + row.map((c, idx) => `<td>${idx === 5 ? new Date(c).toLocaleString() : c}</td>`).join('') + '</tr>';
     });
     html += '</tbody></table></div>';
     document.getElementById('mis-resultados-body').innerHTML = html;
@@ -960,9 +942,8 @@
 
     const filtrados = allQuizzes.filter(q => {
       if (gradoSel === 'Todos') return true;
-      // Tu columna 3 en la hoja de Excel vieja dice "S" en vez del grado.
-      // Por tanto, si dice "S", "Todos", o está vacío, mostramos el quiz de todos modos para que no se pierda.
-      if (!q.grado || q.grado === 'Todos' || q.grado === '' || String(q.grado).toUpperCase() === 'S') return true;
+      // Compatibilidad hacia atrás: si el quiz no tiene grado, se asume para todos.
+      if (!q.grado || q.grado === 'Todos' || q.grado === '') return true;
       return String(q.grado) === String(gradoSel);
     });
 
@@ -1228,7 +1209,7 @@
 
     const res = await callAPI({
       action: 'guardarResultado',
-      res: { ...infoEstudiante, quiz: document.getElementById('quiz-titulo').innerText, puntaje: pts, respuestas: respuestasUser }
+      res: { ...infoEstudiante, quiz: document.getElementById('quiz-titulo').innerText, puntaje: pts }
     }, 'POST');
 
     if (!res.success) return alert("❌ Error al guardar resultado: " + res.error);
@@ -1336,12 +1317,9 @@
     actualizarUIAdvertencias();
     
     document.getElementById('adm-nombre').value = '';
-    document.getElementById('adm-tiempo-global').value = '';
-    document.getElementById('adm-num-preguntas').value = '';
     document.getElementById('adm-feedback').checked = false;
     document.getElementById('adm-grado').value = 'Todos';
     document.getElementById('gradoFiltroInicio').value = 'Todos';
-    document.getElementById('filtroGrupoNotas').value = '';
     document.getElementById('adm-estado').value = 'abierto';
     document.getElementById('adm-fecha-apertura').value = '';
     document.getElementById('adm-fecha-cierre').value = '';
@@ -1378,7 +1356,6 @@
     const opt = document.getElementById('editQuizSelect').selectedOptions[0];
     document.getElementById('adm-tiempo-global').value = opt.dataset.tiempo || '';
     document.getElementById('adm-grado').value = qRes.grado || 'Todos';
-    document.getElementById('adm-num-preguntas').value = qRes.numPreguntas || '';
     
     const fbRaw = qRes.feedback;
     const fbActivo = (typeof fbRaw === 'boolean') ? fbRaw : String(fbRaw).trim().toLowerCase() === 'true';
@@ -1434,12 +1411,6 @@
 
       let pTemp = qRes.data;
       shuffleArray(pTemp);
-      
-      // Filtramos N preguntas si el docente configuró un límite
-      if (qRes.numPreguntas && qRes.numPreguntas > 0 && qRes.numPreguntas < pTemp.length) {
-          pTemp = pTemp.slice(0, qRes.numPreguntas);
-      }
-      
       pTemp = pTemp.map(aleatorizarOpciones);
 
       const dispErr = _verificarDisponibilidad(qRes);
@@ -1655,8 +1626,7 @@
       datos: {
         nombre,
         tiempo: document.getElementById('adm-tiempo-global').value,
-        numPreguntas: parseInt(document.getElementById('adm-num-preguntas').value) || 0,
-        grado: document.getElementById('adm-grado').value,
+        grado: document.getElementById('adm-grado').value, // <-- Aquí enviamos el grado asignado
         feedback: document.getElementById('adm-feedback').checked,
         estado: document.getElementById('adm-estado').value,
         fechaApertura: document.getElementById('adm-fecha-apertura').value || '',
@@ -1697,7 +1667,6 @@
   function renderTablaNotas() {
     const filtroQuiz = document.getElementById('filtroQuizNotas').value;
     const filtroGrado = document.getElementById('filtroGradoNotas').value;
-    const filtroGrupo = document.getElementById('filtroGrupoNotas').value;
 
     if (!todasLasNotas || todasLasNotas.length <= 1) {
         document.getElementById('tabla-notas').innerHTML = "<p class='text-center mt-4 text-muted'>No hay notas registradas para mostrar.</p>";
@@ -1708,35 +1677,18 @@
     const headers = todasLasNotas[0];
     let rows = todasLasNotas.slice(1);
 
-    // Identificar el índice de las columnas reales en tu base de datos (Resultados)
-    const iID = headers.findIndex(h => String(h).toUpperCase().includes('ID'));
-    const idxID = iID !== -1 ? iID : 2; // Si no lo encuentra, asume que es la columna 3 (índice 2)
-    
-    const iGrado = headers.findIndex(h => String(h).toUpperCase().includes('GRADO'));
-    const idxGrado = iGrado !== -1 ? iGrado : 1; // Asume columna 2
-    
-    const iQuiz = headers.findIndex(h => String(h).toUpperCase().includes('QUIZ'));
-    const idxQuiz = iQuiz !== -1 ? iQuiz : 3; // Asume columna 4
-
     // Filtro estricto por Nombre de Quiz
     if (filtroQuiz) {
-        rows = rows.filter(row => String(row[idxQuiz]).trim() === filtroQuiz);
+        rows = rows.filter(row => row.some(cell => String(cell).trim() === filtroQuiz));
     }
 
-    // Filtro por Grado (Analizando la columna ZipGrade ID, o la columna Grado)
+    // Filtro por Grado (busca el '10' u '11' dentro del inicio del ID o en las celdas de la fila)
     if (filtroGrado) {
         rows = rows.filter(row => {
-            const idStr = String(row[idxID]).trim();
-            const gradoStr = String(row[idxGrado]).trim();
-            return idStr.startsWith(filtroGrado) || gradoStr === filtroGrado || gradoStr.includes(filtroGrado);
-        });
-    }
-
-    // Filtro por Grupo (Tercera cifra del código ZipGrade)
-    if (filtroGrupo) {
-        rows = rows.filter(row => {
-            const idStr = String(row[idxID]).trim();
-            return idStr.length >= 3 && idStr.charAt(2) === filtroGrupo;
+            return row.some(cell => {
+                const str = String(cell).trim();
+                return str.startsWith(filtroGrado) || str === filtroGrado;
+            });
         });
     }
 
@@ -1753,7 +1705,8 @@
     
     rows.forEach(row => {
         html += '<tr>' + row.map((c, idx) => {
-            const isDate = (idx === 5 || String(c).includes('GMT') || String(c).includes('T0'));
+            // Formatear fechas si detecta el timestamp
+            const isDate = idx === 5 || String(c).includes('GMT') || String(c).includes('T0');
             return `<td>${isDate && !isNaN(Date.parse(c)) ? new Date(c).toLocaleString() : c}</td>`;
         }).join('') + '</tr>';
     });
@@ -1862,147 +1815,6 @@
       }
     } else {
       el.innerHTML = '';
-    }
-  }
-
-  function descargarReportePDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const quizName = document.getElementById('filtroQuizNotas').value;
-
-    if (!quizName) {
-      return alert("Por favor, selecciona un quiz específico en el filtro superior para generar el reporte.");
-    }
-    if (!notasVisiblesData || notasVisiblesData.length <= 1) {
-      return alert("No hay datos visibles para exportar.");
-    }
-
-    // Encabezados PDF
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("I.E.T. San José - Fresno, Tolima", 14, 20);
-
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.text("Docente: Edison Eduardo Avendaño Vasquez", 14, 28);
-    doc.text(`Examen: ${quizName}`, 14, 34);
-    doc.text(`Fecha de Reporte: ${new Date().toLocaleDateString('es-CO')}`, 14, 40);
-
-    const headers = notasVisiblesData[0];
-    const idxID = headers.findIndex(h => String(h).toUpperCase().includes('ID'));
-    const iColID = idxID !== -1 ? idxID : 2; 
-
-    const idxNombre = headers.findIndex(h => String(h).toUpperCase().includes('ESTUDIANTE') || String(h).toUpperCase().includes('NOMBRE'));
-    const iColNom = idxNombre !== -1 ? idxNombre : 0; 
-
-    const idxPuntaje = headers.findIndex(h => String(h).toUpperCase().includes('PUNTAJE'));
-    const iColPtos = idxPuntaje !== -1 ? idxPuntaje : 4;
-
-    const tableData = [];
-
-    for (let i = 1; i < notasVisiblesData.length; i++) {
-      const row = notasVisiblesData[i];
-      const idStr = String(row[iColID] || '').trim();
-      const nombre = row[iColNom] || 'N/A';
-      const puntaje = row[iColPtos] || '0';
-
-      // Lógica ZipGrade: Dígitos 1-2 (Grado), Dígito 3 (Grupo)
-      let grado = "N/A", grupo = "N/A";
-      if (idStr.length >= 3) {
-        grado = idStr.substring(0, 2);
-        grupo = idStr.substring(2, 3);
-      }
-
-      tableData.push([nombre, idStr, grado, grupo, puntaje]);
-    }
-
-    doc.autoTable({
-      startY: 48,
-      head: [['Estudiante', 'ID ZipGrade', 'Grado', 'Grupo', 'Puntaje Obtenido']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [17, 138, 178] }, // var(--primary)
-      styles: { fontSize: 9 }
-    });
-
-    doc.save(`Reporte_${quizName.replace(/\s+/g, '_')}.pdf`);
-  }
-
-  async function generarAnalisisReactivos() {
-    const quizName = document.getElementById('filtroQuizNotas').value;
-    if (!quizName) return alert("Selecciona un quiz específico para generar el análisis de reactivos.");
-    if (!notasVisiblesData || notasVisiblesData.length <= 1) return alert("No hay suficientes datos para analizar.");
-
-    setLoading(true, "Analizando curva de dificultad...");
-    const qRes = await callAPI({ action: 'cargarPreguntas', nombreQuiz: quizName }, 'POST');
-    setLoading(false);
-
-    if (!qRes.success) return alert("No se pudo cargar la estructura del quiz desde la base de datos.");
-
-    const preguntasQuiz = qRes.data;
-    const numPreguntas = preguntasQuiz.length;
-    const headers = notasVisiblesData[0];
-    
-    // Identifica el inicio de las columnas de respuestas (suelen ser las últimas 'N' columnas)
-    const startCol = headers.length - numPreguntas;
-
-    if (startCol <= 0) {
-        return alert("El formato de las notas exportadas no coincide con la cantidad de preguntas del quiz.");
-    }
-
-    let html = `<div class="card shadow-sm border-0 mb-4 border-start border-5 border-warning">
-                  <div class="card-header bg-white">
-                    <h6 class="mb-0 fw-bold text-primary-dark">⚠️ Análisis de Reactivos: Alertas de Refuerzo</h6>
-                    <small class="text-secondary">Las preguntas en rojo tienen un nivel de acierto inferior al 50%.</small>
-                  </div>
-                  <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 text-center table-sm">
-                      <thead class="table-light">
-                        <tr>
-                          <th>ID</th>
-                          <th class="text-start">Concepto / Enunciado</th>
-                          <th>Aciertos</th>
-                          <th>Respuestas</th>
-                          <th>Eficiencia</th>
-                        </tr>
-                      </thead>
-                      <tbody>`;
-
-    for (let i = 0; i < numPreguntas; i++) {
-      const colIdx = startCol + i;
-      let aciertos = 0;
-      let totalValidos = 0;
-      const correcta = preguntasQuiz[i].correcta;
-
-      for (let j = 1; j < notasVisiblesData.length; j++) {
-          const respEstudiante = String(notasVisiblesData[j][colIdx] || '').trim().toUpperCase();
-          if (respEstudiante !== '') {
-              totalValidos++;
-              if (respEstudiante === correcta || respEstudiante === '1' || respEstudiante === String(preguntasQuiz[i].puntos)) {
-                  aciertos++;
-              }
-          }
-      }
-
-      const porcentaje = totalValidos > 0 ? ((aciertos / totalValidos) * 100).toFixed(1) : 0;
-      const alertClass = porcentaje < 50 && totalValidos > 0 ? 'table-danger text-danger fw-bold' : '';
-
-      html += `<tr class="${alertClass}">
-                <td class="fw-bold text-muted">P${i + 1}</td>
-                <td class="text-start text-truncate" style="max-width: 250px;" title="${preguntasQuiz[i].enunciado.replace(/"/g, '&quot;')}">${preguntasQuiz[i].enunciado}</td>
-                <td>${aciertos}</td>
-                <td>${totalValidos}</td>
-                <td>${porcentaje}%</td>
-               </tr>`;
-    }
-
-    html += `</tbody></table></div></div>`;
-    
-    const container = document.getElementById('analisis-reactivos-container');
-    container.innerHTML = html;
-    
-    if (window.MathJax && window.MathJax.typesetPromise) {
-       MathJax.typesetPromise([container]);
     }
   }
 
